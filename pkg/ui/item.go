@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+	
 	"beads_viewer/pkg/model"
 )
 
@@ -15,10 +17,29 @@ func (i IssueItem) Title() string {
 }
 
 func (i IssueItem) Description() string {
-	// Preview description or metadata
 	return fmt.Sprintf("%s %s • %s", i.Issue.ID, i.Issue.Status, i.Issue.Assignee)
 }
 
 func (i IssueItem) FilterValue() string {
-	return i.Issue.Title + " " + i.Issue.ID + " " + string(i.Issue.Status) + " " + string(i.Issue.IssueType)
+	// Enhanced filter value including labels and assignee
+	var sb strings.Builder
+	sb.WriteString(i.Issue.Title)
+	sb.WriteString(" ")
+	sb.WriteString(i.Issue.ID)
+	sb.WriteString(" ")
+	sb.WriteString(string(i.Issue.Status))
+	sb.WriteString(" ")
+	sb.WriteString(string(i.Issue.IssueType))
+	
+	if i.Issue.Assignee != "" {
+		sb.WriteString(" ")
+		sb.WriteString(i.Issue.Assignee)
+	}
+	
+	if len(i.Issue.Labels) > 0 {
+		sb.WriteString(" ")
+		sb.WriteString(strings.Join(i.Issue.Labels, " "))
+	}
+	
+	return sb.String()
 }

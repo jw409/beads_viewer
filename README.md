@@ -7,12 +7,14 @@ A polished, high-performance TUI for managing and exploring [Beads](https://gith
 ### 🖥️ Visual Dashboard
 *   **Kanban Board**: Press `b` to toggle a 4-column Kanban board (Open, In Progress, Blocked, Closed).
 *   **Adaptive Split-View**: Automatically transitions to a master-detail dashboard on wide screens.
+*   **Ultra-Wide Layouts**: Scales up to 4 tiers of information density, showing labels, comments, and timestamps on large displays.
 *   **Rich Visualization**: Markdown rendering, syntax highlighting, and emoji status icons.
 
 ### ⚡ Workflow
 *   **Instant Filtering**: `o` (Open), `r` (Ready), `c` (Closed), `a` (All).
-*   **Markdown Export**: Generate comprehensive reports with dependency graphs using `bv --export-md report.md`.
+*   **Markdown Export**: Generate comprehensive reports with **Mermaid.js dependency graphs** using `bv --export-md report.md`.
 *   **Keyboard Centric**: `vim` style navigation (`j`/`k`), `h`/`l` for board columns.
+*   **Enhanced Search**: Fuzzy search includes titles, IDs, labels, and assignees.
 
 ### 🛠️ Robustness
 *   **Self-Updating**: Automatically notifies you of new releases.
@@ -39,6 +41,7 @@ bv
 | `h`/`j`/`k`/`l`| Board | Navigate columns (h/l) and items (j/k) |
 | `Enter` | List/Board| Open/Focus details |
 | `o` / `r` / `c` | Global | Filter status |
+| `/` | List | Start Search |
 | `q` | Global | Quit |
 
 ## CI/CD

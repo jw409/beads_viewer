@@ -462,7 +462,9 @@ func (m *Model) renderFooter() string {
 }
 
 func (m *Model) applyFilter() {
-	var filtered []list.Item
+	var filteredItems []list.Item
+	var filteredIssues []model.Issue
+	
 	for _, issue := range m.issues {
 		include := false
 		switch m.currentFilter {
@@ -496,13 +498,16 @@ func (m *Model) applyFilter() {
 		}
 
 		if include {
-			filtered = append(filtered, IssueItem{Issue: issue})
+			filteredItems = append(filteredItems, IssueItem{Issue: issue})
+			filteredIssues = append(filteredIssues, issue)
 		}
 	}
-	m.list.SetItems(filtered)
 	
-	if len(filtered) > 0 {
-		if m.list.Index() >= len(filtered) {
+	m.list.SetItems(filteredItems)
+	m.board.SetIssues(filteredIssues)
+	
+	if len(filteredItems) > 0 {
+		if m.list.Index() >= len(filteredItems) {
 			m.list.Select(0)
 		}
 	}

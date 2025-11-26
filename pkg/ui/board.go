@@ -54,6 +54,44 @@ func NewBoardModel(issues []model.Issue) BoardModel {
 	}
 }
 
+// SetIssues updates the board data, typically after filtering
+func (b *BoardModel) SetIssues(issues []model.Issue) {
+	var cols [4][]model.Issue
+	for _, i := range issues {
+		switch i.Status {
+		case model.StatusOpen: cols[0] = append(cols[0], i)
+		case model.StatusInProgress: cols[1] = append(cols[1], i)
+		case model.StatusBlocked: cols[2] = append(cols[2], i)
+		case model.StatusClosed: cols[3] = append(cols[3], i)
+		}
+	}
+	
+	// Re-sort
+	sortFunc := func(list []model.Issue) {
+		sort.Slice(list, func(i, j int) bool {
+			if list[i].Priority != list[j].Priority {
+				return list[i].Priority < list[j].Priority
+			}
+			return list[i].CreatedAt.After(list[j].CreatedAt)
+		})
+	}
+	for i := 0; i < 4; i++ {
+		sortFunc(cols[i])
+	}
+	
+	b.columns = cols
+	
+	// Sanitize selection
+	for i := 0; i < 4; i++ {
+		if b.selectedRow[i] >= len(b.columns[i]) {
+			b.selectedRow[i] = 0 // Reset to top if out of bounds
+			if len(b.columns[i]) > 0 {
+				b.selectedRow[i] = len(b.columns[i]) - 1
+			}
+		}
+	}
+}
+
 func (b *BoardModel) MoveDown() {
 	count := len(b.columns[b.focusedCol])
 	if count == 0 { return }
