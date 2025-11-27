@@ -74,6 +74,12 @@ Don't just read the title. `bv` gives you the full picture:
 *   **Insights:** Press `i` to see graph metrics and bottlenecks.
 *   **Ultra-Wide Mode:** On large monitors, the list expands to show extra columns like sparklines and label tags.
 
+### 🛠️ Quick Actions
+*   **Export:** Press `E` to export all issues to a timestamped Markdown file with Mermaid diagrams.
+*   **Copy:** Press `C` to copy the selected issue as formatted Markdown to your clipboard.
+*   **Edit:** Press `O` to open the `.beads/beads.jsonl` file in your preferred GUI editor.
+*   **Time-Travel:** Press `t` to compare against any git revision, or `T` for quick HEAD~5 comparison.
+
 ---
 
 ## 🤖 Ready-made Blurb to Drop Into Your AGENTS.md or CLAUDE.md Files
@@ -1171,18 +1177,25 @@ Beyond CLI diff commands, `bv` supports **interactive time-travel** within the T
 
 ### Activating Time-Travel Mode
 
-Press `T` in the main list view to enter time-travel mode. You'll be prompted for a revision:
+Press `t` in the main list view to enter time-travel mode with a custom revision prompt:
 
 ```
 ┌──────────────────────────────────────────┐
-│  🕐 TIME-TRAVEL MODE                     │
+│  ⏱️  Time-Travel Mode                    │
 │                                          │
-│  Compare current state against:          │
-│  > HEAD~5                                │
+│  Compare current state with a            │
+│  historical revision                     │
 │                                          │
-│  Examples: HEAD~10, v1.0.0, 2024-01-15   │
+│  ⏱️  Revision: HEAD~5█                   │
+│                                          │
+│  Examples: HEAD~5, main, v1.0.0,         │
+│           2024-01-01, abc123             │
+│                                          │
+│  Press Enter to compare, Esc to cancel   │
 └──────────────────────────────────────────┘
 ```
+
+For quick access, press `T` (uppercase) to instantly compare against `HEAD~5` without the prompt.
 
 ### Diff Badges
 
@@ -1224,8 +1237,9 @@ Health: ↑ improving (density: -0.02, cycles: -1)
 
 | Key | Action |
 |-----|--------|
-| `T` | Enter/configure time-travel |
-| `Esc` | Exit time-travel mode |
+| `t` | Enter time-travel (custom revision prompt) |
+| `T` | Quick time-travel (HEAD~5) |
+| `t` (while in time-travel) | Exit time-travel mode |
 | `n` | Jump to next changed issue |
 | `N` | Jump to previous changed issue |
 
@@ -1368,8 +1382,12 @@ bv
 | | `x` | Toggle Calculation Proof |
 | **Graph View** | `H` / `L` | Scroll Left / Right |
 | | `Ctrl+D` / `Ctrl+U` | Page Down / Up |
-| **Priority & Analysis** | `p` | Toggle Priority Hints Overlay |
-| | `T` | Enter Time-Travel Mode |
+| **Time-Travel & Analysis** | `t` | Time-Travel Mode (custom revision) |
+| | `T` | Quick Time-Travel (HEAD~5) |
+| | `p` | Toggle Priority Hints Overlay |
+| **Actions** | `E` | Export to Markdown File |
+| | `C` | Copy Issue to Clipboard |
+| | `O` | Open in Editor |
 | **Global** | `?` | Toggle Help Overlay |
 | | `R` | Recipe Picker |
 
