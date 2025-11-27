@@ -107,7 +107,7 @@ graph TD
     classDef output fill:#e8f5e9,stroke:#a5d6a7,stroke-width:2px,color:#2e7d32,rx:8
 
     subgraph storage [" 📂 Data Layer "]
-        A["`.beads/beads.jsonl`<br/><small>JSONL Issue Store</small>"]:::data
+        A[".beads/beads.jsonl<br/><small>JSONL Issue Store</small>"]:::data
     end
 
     subgraph engine [" ⚙️ Analysis Engine "]
