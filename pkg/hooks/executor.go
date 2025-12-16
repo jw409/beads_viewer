@@ -166,10 +166,11 @@ func (e *Executor) Summary() string {
 
 // truncate shortens a string to max length with ellipsis
 func truncate(s string, max int) string {
-	if len(s) <= max {
+	runes := []rune(s)
+	if len(runes) <= max {
 		return s
 	}
-	return s[:max-3] + "..."
+	return string(runes[:max-3]) + "..."
 }
 
 // RunHooks is a convenience function that runs all hooks for an export operation
