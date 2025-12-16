@@ -1272,6 +1272,62 @@ function getCycleInfo() {
 }
 
 /**
+ * Get the full critical path sequence from root to sink.
+ * Returns array of issue IDs representing the longest dependency chain.
+ */
+function getCriticalPathSequence() {
+  if (!GRAPH_STATE.ready) return null;
+
+  const graph = GRAPH_STATE.graph;
+  const heights = graph.criticalPathHeights();
+  if (!heights || heights.length === 0) return null;
+
+  const heightsArray = Array.from(heights);
+  const maxHeight = Math.max(...heightsArray);
+  if (maxHeight === 0) return null; // Cyclic graph or empty
+
+  // Find sink node(s) with max height
+  let sinkIdx = -1;
+  heightsArray.forEach((h, idx) => {
+    if (h === maxHeight) sinkIdx = idx;
+  });
+
+  if (sinkIdx === -1) return null;
+
+  // Backtrack from sink to root to reconstruct the critical path
+  const path = [];
+  let currentIdx = sinkIdx;
+
+  while (currentIdx !== -1) {
+    const issueId = graph.nodeId(currentIdx);
+    if (issueId) path.unshift(issueId);
+
+    // Find predecessor with height = current height - 1
+    const predecessors = graph.predecessors(currentIdx);
+    if (!predecessors || predecessors.length === 0) break;
+
+    const predArray = Array.from(predecessors);
+    const currentHeight = heightsArray[currentIdx];
+    let nextIdx = -1;
+
+    for (const predIdx of predArray) {
+      if (Math.abs(heightsArray[predIdx] - (currentHeight - 1)) < 0.001) {
+        nextIdx = predIdx;
+        break;
+      }
+    }
+
+    currentIdx = nextIdx;
+  }
+
+  return {
+    path,
+    length: path.length,
+    maxHeight,
+  };
+}
+
+/**
  * Get export metadata
  */
 function getMeta() {
@@ -1663,6 +1719,11 @@ function beadsApp() {
     whatIfResult: null,
     topKSet: null,
 
+    // Critical path highlighting
+    showCriticalPath: false,
+    criticalPathData: null, // { path: [issueIds], length: number, animating: boolean }
+    criticalPathAnimationStep: -1,
+
     // Insights view data
     topByBetweenness: [],
     topByCriticalPath: [],
@@ -1724,6 +1785,12 @@ function beadsApp() {
         // 'd' toggles diagnostics panel
         if (e.key === 'd' && !isInput) {
           this.showDiagnostics = !this.showDiagnostics;
+          return;
+        }
+
+        // 'c' toggles critical path highlighting
+        if (e.key === 'c' && !isInput) {
+          this.toggleCriticalPath();
           return;
         }
 
@@ -2193,6 +2260,80 @@ function beadsApp() {
     },
 
     /**
+     * Toggle critical path highlighting
+     */
+    toggleCriticalPath() {
+      if (!this.graphReady) {
+        showToast('Graph engine not ready', 'warning');
+        return;
+      }
+
+      this.showCriticalPath = !this.showCriticalPath;
+
+      if (this.showCriticalPath) {
+        this.criticalPathData = getCriticalPathSequence();
+        if (!this.criticalPathData || this.criticalPathData.path.length === 0) {
+          showToast('No critical path found (may have cycles)', 'info');
+          this.showCriticalPath = false;
+          return;
+        }
+        showToast(`Critical path: ${this.criticalPathData.length} issues deep`, 'success');
+        // Start animation
+        this.animateCriticalPath();
+      } else {
+        this.criticalPathData = null;
+        this.criticalPathAnimationStep = -1;
+      }
+    },
+
+    /**
+     * Animate critical path traversal
+     */
+    async animateCriticalPath() {
+      if (!this.criticalPathData || !this.showCriticalPath) return;
+
+      const path = this.criticalPathData.path;
+      this.criticalPathAnimationStep = -1;
+
+      // Animate through each node with staggered timing
+      for (let i = 0; i < path.length; i++) {
+        if (!this.showCriticalPath) break; // Stop if toggled off
+
+        this.criticalPathAnimationStep = i;
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Keep final state highlighted
+      this.criticalPathAnimationStep = path.length - 1;
+    },
+
+    /**
+     * Check if an issue is on the critical path
+     */
+    isOnCriticalPath(issueId) {
+      if (!this.showCriticalPath || !this.criticalPathData) return false;
+      return this.criticalPathData.path.includes(issueId);
+    },
+
+    /**
+     * Check if an issue is the current animation step
+     */
+    isCriticalPathAnimating(issueId) {
+      if (!this.showCriticalPath || !this.criticalPathData) return false;
+      const idx = this.criticalPathData.path.indexOf(issueId);
+      return idx !== -1 && idx === this.criticalPathAnimationStep;
+    },
+
+    /**
+     * Get critical path position for an issue (1-indexed)
+     */
+    getCriticalPathPosition(issueId) {
+      if (!this.criticalPathData) return null;
+      const idx = this.criticalPathData.path.indexOf(issueId);
+      return idx !== -1 ? idx + 1 : null;
+    },
+
+    /**
      * Format date helper
      */
     formatDate,
@@ -2263,6 +2404,7 @@ window.beadsViewer = {
   topWhatIf,
   getActionableIssues,
   getCycleBreakSuggestions,
+  getCriticalPathSequence,
   getTopKSet,
 
   // WASM Fallback

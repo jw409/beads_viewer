@@ -470,6 +470,9 @@ function getNodeColor(node) {
     if (node._whatIfState === 'closing') return THEME.accent.green;
     if (node._whatIfState === 'unblocked') return THEME.accent.cyan;
 
+    // Critical path nodes get red/orange highlight
+    if (node._criticalPathState === 'active') return THEME.accent.red;
+
     // Cycle nodes get special color
     if (node.inCycle) return THEME.accent.pink;
 
@@ -512,6 +515,11 @@ function drawNode(node, ctx, globalScale) {
     } else if (node._whatIfState === 'unblocked') {
         ctx.shadowColor = THEME.accent.cyan;
         ctx.shadowBlur = 20;
+    }
+    // Critical path glow
+    else if (node._criticalPathState === 'active') {
+        ctx.shadowColor = THEME.accent.red;
+        ctx.shadowBlur = 22;
     }
     // Glow effect for important nodes (PageRank sums to 1.0, so threshold ~2x average)
     else if (node.pagerank > 0.03 || isHovered || isSelected) {
@@ -602,6 +610,13 @@ function getLinkColor(link) {
     if (whatIfState.active && store.highlightedLinks.has(linkId)) {
         if (sourceNode?._whatIfState === 'closing' || targetNode?._whatIfState === 'unblocked') {
             return THEME.accent.green;
+        }
+    }
+
+    // Critical path links (red)
+    if (criticalPathState.active && store.highlightedLinks.has(linkId)) {
+        if (sourceNode?._criticalPathState || targetNode?._criticalPathState) {
+            return THEME.link.critical;
         }
     }
 
@@ -987,6 +1002,232 @@ export function getWhatIfState() {
 }
 
 // ============================================================================
+// CRITICAL PATH ANIMATION
+// ============================================================================
+
+// Critical path animation state
+const criticalPathState = {
+    active: false,
+    path: [],           // Node IDs in path order
+    pathIndices: [],    // Node indices in path order
+    currentStep: 0,
+    animationTimer: null,
+    pathLength: 0
+};
+
+/**
+ * Animate the critical path traversal
+ * @param {boolean} animate - Whether to animate or just highlight
+ */
+export function animateCriticalPath(animate = true) {
+    if (!store.wasmReady || !store.wasmGraph) {
+        console.warn('[bv-graph] Critical path: WASM not ready');
+        return null;
+    }
+
+    // Reset any existing animation
+    resetCriticalPath();
+
+    // Get the longest critical path using kCriticalPaths(1)
+    let pathResult;
+    try {
+        pathResult = store.wasmGraph.kCriticalPathsDefault();
+        if (typeof pathResult === 'string') {
+            pathResult = JSON.parse(pathResult);
+        }
+    } catch (e) {
+        console.error('[bv-graph] Critical path computation failed:', e);
+        return null;
+    }
+
+    if (!pathResult?.paths?.length || !pathResult.paths[0]?.nodes?.length) {
+        showToast('No critical path found (graph may be empty or cyclic)', 'info');
+        return null;
+    }
+
+    const longestPath = pathResult.paths[0];
+    criticalPathState.pathIndices = longestPath.nodes;
+    criticalPathState.pathLength = longestPath.length;
+
+    // Convert indices to node IDs
+    criticalPathState.path = longestPath.nodes.map(idx =>
+        store.wasmGraph.nodeId(idx)
+    ).filter(Boolean);
+
+    if (criticalPathState.path.length === 0) {
+        showToast('Critical path nodes not found in graph', 'warning');
+        return null;
+    }
+
+    criticalPathState.active = true;
+    store.highlightedNodes.clear();
+    store.highlightedLinks.clear();
+
+    dispatchEvent('criticalPathStart', {
+        pathLength: criticalPathState.pathLength,
+        nodeCount: criticalPathState.path.length
+    });
+
+    if (animate) {
+        // Animate traversal from source to sink
+        animateCriticalPathTraversal();
+    } else {
+        // Just highlight all at once
+        criticalPathState.path.forEach(id => store.highlightedNodes.add(id));
+        highlightCriticalPathLinks();
+        store.graph.refresh();
+        showCriticalPathSummary();
+    }
+
+    return {
+        path: criticalPathState.path,
+        length: criticalPathState.pathLength
+    };
+}
+
+/**
+ * Animate the critical path traversal step by step
+ */
+function animateCriticalPathTraversal() {
+    const path = criticalPathState.path;
+    const graphData = store.graph.graphData();
+
+    criticalPathState.currentStep = 0;
+
+    function animateStep() {
+        if (!criticalPathState.active || criticalPathState.currentStep >= path.length) {
+            // Animation complete
+            criticalPathState.animationTimer = setTimeout(() => {
+                showCriticalPathSummary();
+            }, 300);
+            return;
+        }
+
+        const nodeId = path[criticalPathState.currentStep];
+        store.highlightedNodes.add(nodeId);
+
+        // Mark node with critical path state for visual effect
+        const graphNode = graphData.nodes.find(n => n.id === nodeId);
+        if (graphNode) {
+            graphNode._criticalPathState = 'active';
+        }
+
+        // Highlight the edge from previous node
+        if (criticalPathState.currentStep > 0) {
+            const prevNodeId = path[criticalPathState.currentStep - 1];
+            store.highlightedLinks.add(`${prevNodeId}-${nodeId}`);
+            store.highlightedLinks.add(`${nodeId}-${prevNodeId}`); // Both directions
+        }
+
+        store.graph.refresh();
+        dispatchEvent('criticalPathStep', {
+            nodeId,
+            step: criticalPathState.currentStep,
+            total: path.length
+        });
+
+        criticalPathState.currentStep++;
+        criticalPathState.animationTimer = setTimeout(animateStep, 250);
+    }
+
+    animateStep();
+}
+
+/**
+ * Highlight all links on the critical path
+ */
+function highlightCriticalPathLinks() {
+    const path = criticalPathState.path;
+    for (let i = 0; i < path.length - 1; i++) {
+        store.highlightedLinks.add(`${path[i]}-${path[i+1]}`);
+        store.highlightedLinks.add(`${path[i+1]}-${path[i]}`);
+    }
+}
+
+/**
+ * Show critical path summary toast
+ */
+function showCriticalPathSummary() {
+    const path = criticalPathState.path;
+    if (path.length === 0) return;
+
+    const sourceId = path[0];
+    const sinkId = path[path.length - 1];
+
+    showToast(
+        `Critical path: ${path.length} nodes, from ${sourceId} to ${sinkId}`,
+        'info'
+    );
+
+    dispatchEvent('criticalPathComplete', {
+        path: criticalPathState.path,
+        length: criticalPathState.pathLength,
+        source: sourceId,
+        sink: sinkId
+    });
+}
+
+/**
+ * Reset critical path visualization state
+ */
+export function resetCriticalPath() {
+    if (criticalPathState.animationTimer) {
+        clearTimeout(criticalPathState.animationTimer);
+        criticalPathState.animationTimer = null;
+    }
+
+    // Clear visual states
+    const graphData = store.graph?.graphData();
+    if (graphData) {
+        graphData.nodes.forEach(node => {
+            delete node._criticalPathState;
+        });
+    }
+
+    criticalPathState.active = false;
+    criticalPathState.path = [];
+    criticalPathState.pathIndices = [];
+    criticalPathState.currentStep = 0;
+    criticalPathState.pathLength = 0;
+
+    store.highlightedNodes.clear();
+    store.highlightedLinks.clear();
+    store.graph?.refresh();
+
+    dispatchEvent('criticalPathReset');
+}
+
+/**
+ * Toggle critical path highlighting
+ */
+export function toggleCriticalPath() {
+    if (criticalPathState.active) {
+        resetCriticalPath();
+    } else {
+        animateCriticalPath(true);
+    }
+}
+
+/**
+ * Check if critical path is active
+ */
+export function isCriticalPathActive() {
+    return criticalPathState.active;
+}
+
+/**
+ * Get critical path state
+ */
+export function getCriticalPathState() {
+    return {
+        active: criticalPathState.active,
+        path: [...criticalPathState.path],
+        length: criticalPathState.pathLength,
+        currentStep: criticalPathState.currentStep
+    };
+}
+
+// ============================================================================
 // SELECTION & HIGHLIGHTING
 // ============================================================================
 
@@ -1212,6 +1453,8 @@ function setupKeyboardShortcuts() {
             case 'Escape':
                 if (whatIfState.active) {
                     resetWhatIf();
+                } else if (criticalPathState.active) {
+                    resetCriticalPath();
                 } else {
                     clearSelection();
                 }
@@ -1244,7 +1487,7 @@ function setupKeyboardShortcuts() {
                 setViewMode(VIEW_MODES.CLUSTER);
                 break;
             case 'c':
-                highlightCriticalPath();
+                toggleCriticalPath();
                 break;
             case 'y':
                 highlightCycles();
