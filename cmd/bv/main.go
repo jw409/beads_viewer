@@ -1014,6 +1014,24 @@ func main() {
 		// Generate top 50 lists for summary, but full stats are included in the struct
 		insights := stats.GenerateInsights(50)
 
+		// Add project-level velocity snapshot (reuse triage computation for consistency)
+		if triage := analysis.ComputeTriage(issues); triage.ProjectHealth.Velocity != nil {
+			v := triage.ProjectHealth.Velocity
+			snap := &analysis.VelocitySnapshot{
+				Closed7:   v.ClosedLast7Days,
+				Closed30:  v.ClosedLast30Days,
+				AvgDays:   v.AvgDaysToClose,
+				Estimated: v.Estimated,
+			}
+			if len(v.Weekly) > 0 {
+				snap.Weekly = make([]int, len(v.Weekly))
+				for i := range v.Weekly {
+					snap.Weekly[i] = v.Weekly[i].Closed
+				}
+			}
+			insights.Velocity = snap
+		}
+
 		// Optional cap for metric maps to avoid overload
 		limitMaps := func(m map[string]float64, limit int) map[string]float64 {
 			if limit <= 0 || limit >= len(m) {
