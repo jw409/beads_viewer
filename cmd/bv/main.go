@@ -670,23 +670,28 @@ func main() {
 		// Get top what-if deltas for issues with highest downstream impact (bv-83)
 		topWhatIfs := analyzer.TopWhatIfDeltas(10)
 
+		// Generate advanced insights with canonical structure (bv-181)
+		advancedInsights := analyzer.GenerateAdvancedInsights(analysis.DefaultAdvancedInsightsConfig())
+
 		output := struct {
-			GeneratedAt    string                  `json:"generated_at"`
-			DataHash       string                  `json:"data_hash"`
-			AnalysisConfig analysis.AnalysisConfig `json:"analysis_config"`
-			Status         analysis.MetricStatus   `json:"status"`
+			GeneratedAt      string                    `json:"generated_at"`
+			DataHash         string                    `json:"data_hash"`
+			AnalysisConfig   analysis.AnalysisConfig   `json:"analysis_config"`
+			Status           analysis.MetricStatus     `json:"status"`
 			analysis.Insights
-			FullStats  interface{}            `json:"full_stats"`
-			TopWhatIfs []analysis.WhatIfEntry `json:"top_what_ifs,omitempty"` // Issues with highest downstream impact (bv-83)
-			UsageHints []string               `json:"usage_hints"`            // bv-84: Agent-friendly hints
+			FullStats        interface{}               `json:"full_stats"`
+			TopWhatIfs       []analysis.WhatIfEntry    `json:"top_what_ifs,omitempty"`       // Issues with highest downstream impact (bv-83)
+			AdvancedInsights *analysis.AdvancedInsights `json:"advanced_insights,omitempty"` // bv-181: Canonical advanced features
+			UsageHints       []string                  `json:"usage_hints"`                  // bv-84: Agent-friendly hints
 		}{
-			GeneratedAt:    time.Now().UTC().Format(time.RFC3339),
-			DataHash:       dataHash,
-			AnalysisConfig: stats.Config,
-			Status:         stats.Status(),
-			Insights:       insights,
-			FullStats:      fullStats,
-			TopWhatIfs:     topWhatIfs,
+			GeneratedAt:      time.Now().UTC().Format(time.RFC3339),
+			DataHash:         dataHash,
+			AnalysisConfig:   stats.Config,
+			Status:           stats.Status(),
+			Insights:         insights,
+			FullStats:        fullStats,
+			TopWhatIfs:       topWhatIfs,
+			AdvancedInsights: advancedInsights,
 			UsageHints: []string{
 				"jq '.Bottlenecks[:5] | map(.ID)' - Top 5 bottleneck IDs",
 				"jq '.CriticalPath[:3]' - Top 3 critical path items",
@@ -696,6 +701,7 @@ func main() {
 				"jq '.full_stats.articulation_points' - Structural cut points",
 				"jq '.Slack[:5]' - Nodes with slack (good parallel work candidates)",
 				"jq '.Cycles | length' - Count of detected cycles",
+				"jq '.advanced_insights.cycle_break' - Cycle break suggestions (bv-181)",
 				"BV_INSIGHTS_MAP_LIMIT=50 bv --robot-insights - Reduce map sizes",
 			},
 		}
