@@ -12,11 +12,12 @@ import (
 
 // LabelDashboardModel renders a lightweight table of label health
 type LabelDashboardModel struct {
-	labels []analysis.LabelHealth
-	cursor int
-	width  int
-	height int
-	theme  Theme
+	labels       []analysis.LabelHealth
+	cursor       int
+	scrollOffset int // Index of the first visible row
+	width        int
+	height       int
+	theme        Theme
 }
 
 func NewLabelDashboardModel(theme Theme) LabelDashboardModel {
@@ -65,20 +66,40 @@ func (m *LabelDashboardModel) SetData(labels []analysis.LabelHealth) {
 
 // Update handles navigation keys; returns selected label on enter
 func (m *LabelDashboardModel) Update(msg tea.KeyMsg) (string, tea.Cmd) {
+	visibleRows := m.height - 1
+	if visibleRows < 1 {
+		visibleRows = 1
+	}
+
 	switch msg.String() {
 	case "j", "down":
 		if m.cursor < len(m.labels)-1 {
 			m.cursor++
+			// Scroll down if moving past bottom
+			if m.cursor >= m.scrollOffset+visibleRows {
+				m.scrollOffset = m.cursor - visibleRows + 1
+			}
 		}
 	case "k", "up":
 		if m.cursor > 0 {
 			m.cursor--
+			// Scroll up if moving past top
+			if m.cursor < m.scrollOffset {
+				m.scrollOffset = m.cursor
+			}
 		}
 	case "home":
 		m.cursor = 0
+		m.scrollOffset = 0
 	case "G", "end":
 		if len(m.labels) > 0 {
 			m.cursor = len(m.labels) - 1
+			// Scroll to bottom
+			if len(m.labels) > visibleRows {
+				m.scrollOffset = len(m.labels) - visibleRows
+			} else {
+				m.scrollOffset = 0
+			}
 		}
 	case "enter":
 		if m.cursor >= 0 && m.cursor < len(m.labels) {
@@ -102,11 +123,23 @@ func (m LabelDashboardModel) View() string {
 	b.WriteString(headerLine)
 	b.WriteString("\n")
 
-	for i, lh := range m.labels {
+	visibleRows := m.height - 1
+	if visibleRows < 1 {
+		visibleRows = 1
+	}
+
+	start := m.scrollOffset
+	end := start + visibleRows
+	if end > len(m.labels) {
+		end = len(m.labels)
+	}
+
+	for i := start; i < end; i++ {
+		lh := m.labels[i]
 		row := m.getRowCells(lh)
 		selected := i == m.cursor
 		b.WriteString(m.renderRow(row, widths, false, selected))
-		if i != len(m.labels)-1 {
+		if i != end-1 {
 			b.WriteString("\n")
 		}
 	}

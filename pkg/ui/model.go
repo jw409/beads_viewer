@@ -1669,6 +1669,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case focusHistory:
 				m = m.handleHistoryKeys(msg)
 
+			case focusSprint:
+				m = m.handleSprintKeys(msg)
+
 			case focusList:
 				m = m.handleListKeys(msg)
 
