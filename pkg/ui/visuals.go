@@ -1,18 +1,13 @@
 package ui
 
 import (
+	"math"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	// Gradients
-	GradientLow  = lipgloss.Color("#44475A")
-	GradientMid  = lipgloss.Color("#6272A4")
-	GradientHigh = lipgloss.Color("#BD93F9")
-	GradientPeak = lipgloss.Color("#FF79C6")
-)
+
 
 // RenderSparkline creates a textual bar chart of value (0.0 - 1.0)
 func RenderSparkline(val float64, width int) string {
@@ -21,9 +16,10 @@ func RenderSparkline(val float64, width int) string {
 	}
 
 	chars := []string{" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
-	// If width > 1, we can show history? Or just a bar?
-	// Let's render a horizontal bar: `███▌    `
-
+	
+	if math.IsNaN(val) {
+		val = 0
+	}
 	if val < 0 {
 		val = 0
 	}
@@ -66,15 +62,15 @@ func RenderSparkline(val float64, width int) string {
 }
 
 // GetHeatmapColor returns a color based on score (0-1)
-func GetHeatmapColor(score float64) lipgloss.Color {
+func GetHeatmapColor(score float64, t Theme) lipgloss.TerminalColor {
 	if score > 0.8 {
-		return GradientPeak
+		return t.Primary // Peak/High
 	} else if score > 0.5 {
-		return GradientHigh
+		return t.Feature // Mid-High
 	} else if score > 0.2 {
-		return GradientMid
+		return t.InProgress // Low-Mid
 	}
-	return GradientLow
+	return t.Secondary // Low
 }
 
 // RepoColors maps repo prefixes to distinctive colors for visual differentiation

@@ -153,7 +153,7 @@ func RenderStatusBadge(status string) string {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // RenderMiniBar renders a mini horizontal bar for a value between 0 and 1
-func RenderMiniBar(value float64, width int) string {
+func RenderMiniBar(value float64, width int, t Theme) string {
 	if width <= 0 {
 		return ""
 	}
@@ -170,19 +170,19 @@ func RenderMiniBar(value float64, width int) string {
 	}
 
 	// Choose color based on value
-	var barColor lipgloss.Color
+	var barColor lipgloss.AdaptiveColor
 	if value >= 0.75 {
-		barColor = ColorSuccess
+		barColor = t.Open // Green/Success
 	} else if value >= 0.5 {
-		barColor = ColorWarning
+		barColor = t.Feature // Orange/Warning
 	} else if value >= 0.25 {
-		barColor = ColorInfo
+		barColor = t.InProgress // Cyan/Info
 	} else {
-		barColor = ColorMuted
+		barColor = t.Secondary // Muted
 	}
 
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
-	return lipgloss.NewStyle().Foreground(barColor).Render(bar)
+	return t.Renderer.NewStyle().Foreground(barColor).Render(bar)
 }
 
 // RenderRankBadge renders a rank badge like "#1" with color based on percentile

@@ -26,7 +26,6 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -117,9 +116,30 @@ type HistoryLoadedMsg struct {
 // LoadHistoryCmd returns a command that loads history data in the background
 func LoadHistoryCmd(issues []model.Issue, beadsPath string) tea.Cmd {
 	return func() tea.Msg {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return HistoryLoadedMsg{Error: err}
+		var repoPath string
+		var err error
+
+		if beadsPath != "" {
+			// If beadsPath is provided (single-repo mode), derive repo root from it.
+			// Try to resolve absolute path first.
+			if absPath, e := filepath.Abs(beadsPath); e == nil {
+				dir := filepath.Dir(absPath)
+				// Standard layout: <repo_root>/.beads/<file.jsonl>
+				if filepath.Base(dir) == ".beads" {
+					repoPath = filepath.Dir(dir)
+				} else {
+					// Legacy/Flat layout: <repo_root>/<file.jsonl>
+					repoPath = dir
+				}
+			}
+		}
+
+		// Fallback to CWD if beadsPath is empty (workspace mode) or Abs failed
+		if repoPath == "" {
+			repoPath, err = os.Getwd()
+			if err != nil {
+				return HistoryLoadedMsg{Error: err}
+			}
 		}
 
 		// Convert model.Issue to correlation.BeadInfo
@@ -132,7 +152,7 @@ func LoadHistoryCmd(issues []model.Issue, beadsPath string) tea.Cmd {
 			}
 		}
 
-		correlator := correlation.NewCorrelator(cwd, beadsPath)
+		correlator := correlation.NewCorrelator(repoPath, beadsPath)
 		opts := correlation.CorrelatorOptions{
 			Limit: 500, // Reasonable limit for TUI performance
 		}
@@ -501,11 +521,8 @@ func NewModel(issues []model.Issue, activeRecipe *recipe.Recipe, beadsPath strin
 	l.Styles.PaginationStyle = lipgloss.NewStyle()
 	l.Styles.HelpStyle = lipgloss.NewStyle()
 
-	// Glamour markdown renderer
-	renderer, _ := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(80),
-	)
+	// Theme-aware markdown renderer
+	renderer := NewMarkdownRendererWithTheme(80, theme)
 
 	// Initialize sub-components
 	board := NewBoardModel(issues, theme)
@@ -1773,12 +1790,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.SetSize(listInnerWidth, listHeight)
 			m.viewport = viewport.New(detailInnerWidth, bodyHeight-2) // Account for border
 
-			if r, err := glamour.NewTermRenderer(
-				glamour.WithAutoStyle(),
-				glamour.WithWordWrap(detailInnerWidth),
-			); err == nil {
-				m.renderer = r
-			}
+			m.renderer.SetWidthWithTheme(detailInnerWidth, m.theme)
 		} else {
 			listHeight := bodyHeight - 2
 			if listHeight < 3 {
@@ -1788,12 +1800,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport = viewport.New(msg.Width, bodyHeight-1)
 
 			// Update renderer for full width
-			if r, err := glamour.NewTermRenderer(
-				glamour.WithAutoStyle(),
-				glamour.WithWordWrap(msg.Width),
-			); err == nil {
-				m.renderer = r
-			}
+			m.renderer.SetWidthWithTheme(msg.Width, m.theme)
 		}
 
 		m.list.SetDelegate(IssueDelegate{

@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"io"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestRenderPriorityBadge(t *testing.T) {
@@ -47,6 +50,9 @@ func TestRenderStatusBadge(t *testing.T) {
 }
 
 func TestRenderMiniBar(t *testing.T) {
+	renderer := lipgloss.NewRenderer(io.Discard)
+	theme := DefaultTheme(renderer)
+
 	tests := []struct {
 		val   float64
 		width int
@@ -61,7 +67,7 @@ func TestRenderMiniBar(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := RenderMiniBar(tt.val, tt.width)
+		got := RenderMiniBar(tt.val, tt.width, theme)
 		if tt.width <= 0 {
 			if got != "" {
 				t.Errorf("RenderMiniBar(%v, %d) = %q, want empty string", tt.val, tt.width, got)
