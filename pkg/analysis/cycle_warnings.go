@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Dicklesworthstone/beads_viewer/pkg/model"
 )
@@ -35,7 +36,14 @@ func DetectCycleWarnings(issues []model.Issue, config CycleWarningConfig) []Sugg
 
 	// Build the analyzer to access cycle detection
 	analyzer := NewAnalyzer(issues)
-	stats := analyzer.Analyze()
+	
+	// Only compute cycles for performance
+	analysisConfig := AnalysisConfig{
+		ComputeCycles:    true,
+		CyclesTimeout:    500 * time.Millisecond,
+		MaxCyclesToStore: 100,
+	}
+	stats := analyzer.AnalyzeWithConfig(analysisConfig)
 
 	// Get cycles from the stats
 	cycles := stats.Cycles()

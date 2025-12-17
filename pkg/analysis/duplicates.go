@@ -71,25 +71,68 @@ type DuplicatePair struct {
 }
 
 // DetectDuplicates finds potential duplicate issues using keyword-based Jaccard similarity
+// Optimized with an inverted index for performance on large repositories.
 func DetectDuplicates(issues []model.Issue, config DuplicateConfig) []Suggestion {
 	if len(issues) < 2 {
 		return nil
 	}
 
-	// Extract keywords for each issue
-	issueKeywords := make(map[string][]string, len(issues))
-	issueMap := make(map[string]*model.Issue, len(issues))
+	// 1. Extract keywords for each issue and build Inverted Index
+	// keywords[i] = unique keywords for issue i
+	keywords := make([][]string, len(issues))
+	// index[word] = list of issue indices containing that word
+	index := make(map[string][]int)
+
 	for i := range issues {
-		issue := &issues[i]
-		issueMap[issue.ID] = issue
-		issueKeywords[issue.ID] = extractKeywords(issue.Title, issue.Description)
+		kws := extractKeywords(issues[i].Title, issues[i].Description)
+		keywords[i] = kws
+
+		// Only index if enough keywords to matter
+		if len(kws) >= config.MinKeywords {
+			for _, w := range kws {
+				index[w] = append(index[w], i)
+			}
+		}
 	}
 
 	var pairs []DuplicatePair
 
-	// Compare all pairs (O(n^2) but typically small issue counts)
-	for i := 0; i < len(issues); i++ {
-		for j := i + 1; j < len(issues); j++ {
+	// 2. Iterate through issues and find candidates
+	for i := range issues {
+		// Skip if this issue doesn't have enough keywords
+		if len(keywords[i]) < config.MinKeywords {
+			continue
+		}
+
+		// Count overlaps with other issues
+		// candidateIdx -> intersection count
+		overlaps := make(map[int]int)
+
+		for _, w := range keywords[i] {
+			for _, matchIdx := range index[w] {
+				// Only look at j > i to avoid duplicates and self-compare
+				if matchIdx > i {
+					overlaps[matchIdx]++
+				}
+			}
+		}
+
+		// 3. Evaluate candidates
+		for j, overlap := range overlaps {
+			// Skip if other doesn't have enough keywords (redundant if index logic is strict, but safe)
+			if len(keywords[j]) < config.MinKeywords {
+				continue
+			}
+
+			// Jaccard = Intersection / Union
+			// Union = |A| + |B| - |Intersection|
+			union := len(keywords[i]) + len(keywords[j]) - overlap
+			similarity := float64(overlap) / float64(union)
+
+			if similarity < config.JaccardThreshold {
+				continue
+			}
+
 			issue1 := &issues[i]
 			issue2 := &issues[j]
 
@@ -100,24 +143,16 @@ func DetectDuplicates(issues []model.Issue, config DuplicateConfig) []Suggestion
 				}
 			}
 
-			kw1 := issueKeywords[issue1.ID]
-			kw2 := issueKeywords[issue2.ID]
+			// Reconstruct common keywords for display (only for passing pairs)
+			common := intersectKeywords(keywords[i], keywords[j])
 
-			// Skip if not enough keywords
-			if len(kw1) < config.MinKeywords || len(kw2) < config.MinKeywords {
-				continue
-			}
-
-			similarity, common := jaccardSimilarity(kw1, kw2)
-			if similarity >= config.JaccardThreshold {
-				pairs = append(pairs, DuplicatePair{
-					Issue1:     issue1.ID,
-					Issue2:     issue2.ID,
-					Similarity: similarity,
-					Method:     "jaccard",
-					Keywords:   common,
-				})
-			}
+			pairs = append(pairs, DuplicatePair{
+				Issue1:     issue1.ID,
+				Issue2:     issue2.ID,
+				Similarity: similarity,
+				Method:     "jaccard",
+				Keywords:   common,
+			})
 		}
 	}
 
@@ -125,6 +160,12 @@ func DetectDuplicates(issues []model.Issue, config DuplicateConfig) []Suggestion
 	sortPairsBySimilarity(pairs)
 	if len(pairs) > config.MaxSuggestions {
 		pairs = pairs[:config.MaxSuggestions]
+	}
+
+	// Issue lookup map for constructing suggestions
+	issueMap := make(map[string]*model.Issue, len(issues))
+	for i := range issues {
+		issueMap[issues[i].ID] = &issues[i]
 	}
 
 	// Convert to suggestions
@@ -152,6 +193,24 @@ func DetectDuplicates(issues []model.Issue, config DuplicateConfig) []Suggestion
 	}
 
 	return suggestions
+}
+
+// intersectKeywords finds common strings between two sorted/unsorted slices.
+// Since extractKeywords returns unsorted unique lists, we can use a map or loops.
+// Since we only call this on high-similarity pairs, performance is less critical than the main loop.
+func intersectKeywords(a, b []string) []string {
+	m := make(map[string]bool, len(a))
+	for _, w := range a {
+		m[w] = true
+	}
+	var common []string
+	for _, w := range b {
+		if m[w] {
+			common = append(common, w)
+		}
+	}
+	sort.Strings(common)
+	return common
 }
 
 // extractKeywords extracts meaningful keywords from text
@@ -189,48 +248,7 @@ func extractKeywords(title, description string) []string {
 	return keywords
 }
 
-// jaccardSimilarity computes Jaccard similarity between two keyword sets
-// Returns similarity score and the common keywords
-func jaccardSimilarity(set1, set2 []string) (float64, []string) {
-	if len(set1) == 0 || len(set2) == 0 {
-		return 0, nil
-	}
 
-	// Build maps for O(1) lookup
-	map1 := make(map[string]bool, len(set1))
-	for _, k := range set1 {
-		map1[k] = true
-	}
-
-	map2 := make(map[string]bool, len(set2))
-	for _, k := range set2 {
-		map2[k] = true
-	}
-
-	// Compute intersection
-	var intersection []string
-	for k := range map1 {
-		if map2[k] {
-			intersection = append(intersection, k)
-		}
-	}
-
-	// Compute union size
-	union := len(set1)
-	for k := range map2 {
-		if !map1[k] {
-			union++
-		}
-	}
-
-	if union == 0 {
-		return 0, nil
-	}
-
-	sort.Strings(intersection)
-
-	return float64(len(intersection)) / float64(union), intersection
-}
 
 // sortPairsBySimilarity sorts duplicate pairs by similarity (highest first)
 // Uses sort.Slice for O(n log n) performance instead of bubble sort O(n²)

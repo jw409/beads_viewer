@@ -58,76 +58,110 @@ type DependencyMatch struct {
 }
 
 // DetectMissingDependencies analyzes issues for potential missing dependencies
+// Optimized with inverted index to avoid O(N^2) comparisons.
 func DetectMissingDependencies(issues []model.Issue, config DependencySuggestionConfig) []Suggestion {
 	if len(issues) < 2 {
 		return nil
 	}
 
-	// Extract keywords and build maps
-	issueKeywords := make(map[string]map[string]bool, len(issues))
-	issueLabels := make(map[string]map[string]bool, len(issues))
-	existingDeps := make(map[string]map[string]bool)
+	// 1. Build Inverted Index and Precompute Data
+	keywords := make([][]string, len(issues))
+	// issueLabels maps to set for fast overlap check
+	issueLabels := make(map[int]map[string]bool, len(issues))
+	// existingDeps maps to set for fast check
+	existingDeps := make(map[int]map[int]bool, len(issues))
+	
+	// index[keyword] -> list of issue indices
+	index := make(map[string][]int)
 
-	for _, issue := range issues {
+	for i := range issues {
 		// Keywords
-		kw := extractKeywords(issue.Title, issue.Description)
-		kwMap := make(map[string]bool, len(kw))
-		for _, k := range kw {
-			kwMap[k] = true
-		}
-		issueKeywords[issue.ID] = kwMap
-
-		// Labels
-		lblMap := make(map[string]bool, len(issue.Labels))
-		for _, l := range issue.Labels {
-			lblMap[strings.ToLower(l)] = true
-		}
-		issueLabels[issue.ID] = lblMap
-
-		// Existing deps
-		if existingDeps[issue.ID] == nil {
-			existingDeps[issue.ID] = make(map[string]bool)
-		}
-		for _, dep := range issue.Dependencies {
-			if dep != nil {
-				existingDeps[issue.ID][dep.DependsOnID] = true
+		kws := extractKeywords(issues[i].Title, issues[i].Description)
+		keywords[i] = kws
+		
+		// Only index if we have enough keywords to possibly match
+		if len(kws) >= config.MinKeywordOverlap {
+			for _, w := range kws {
+				index[w] = append(index[w], i)
 			}
 		}
+
+		// Labels
+		lbls := make(map[string]bool, len(issues[i].Labels))
+		for _, l := range issues[i].Labels {
+			lbls[strings.ToLower(l)] = true
+		}
+		issueLabels[i] = lbls
+
+		// Existing Deps (store indices for speed)
+		// We need a way to map ID -> Index. 
+		// Since we iterate by index, let's build ID map first.
+	}
+
+	// Build ID -> Index map
+	idToIndex := make(map[string]int, len(issues))
+	for i, issue := range issues {
+		idToIndex[issue.ID] = i
+	}
+
+	// Fill existingDeps
+	for i, issue := range issues {
+		deps := make(map[int]bool)
+		for _, dep := range issue.Dependencies {
+			if dep != nil {
+				if idx, ok := idToIndex[dep.DependsOnID]; ok {
+					deps[idx] = true
+				}
+			}
+		}
+		existingDeps[i] = deps
 	}
 
 	var matches []DependencyMatch
 
-	// Compare all pairs
-	for i := 0; i < len(issues); i++ {
-		for j := i + 1; j < len(issues); j++ {
-			issue1 := &issues[i]
-			issue2 := &issues[j]
+	// 2. Iterate and Find Candidates
+	for i := range issues {
+		if len(keywords[i]) < config.MinKeywordOverlap {
+			continue
+		}
 
-			// Skip if already have a dependency either direction
+		// candidateIdx -> match count
+		overlaps := make(map[int]int)
+		for _, w := range keywords[i] {
+			for _, matchIdx := range index[w] {
+				if matchIdx > i { // Avoid duplicates and self
+					overlaps[matchIdx]++
+				}
+			}
+		}
+
+		// 3. Evaluate Candidates
+		for j, overlap := range overlaps {
+			if overlap < config.MinKeywordOverlap {
+				continue
+			}
+
+			// Check existing deps
 			if config.IgnoreExistingDeps {
-				if existingDeps[issue1.ID][issue2.ID] || existingDeps[issue2.ID][issue1.ID] {
+				if existingDeps[i][j] || existingDeps[j][i] {
 					continue
 				}
 			}
 
-			// Skip if both are closed
+			issue1 := &issues[i]
+			issue2 := &issues[j]
+
+			// Skip if both closed
 			if issue1.Status == model.StatusClosed && issue2.Status == model.StatusClosed {
 				continue
 			}
 
-			// Find shared keywords
-			kw1 := issueKeywords[issue1.ID]
-			kw2 := issueKeywords[issue2.ID]
-			sharedKW := findSharedKeys(kw1, kw2)
-
-			if len(sharedKW) < config.MinKeywordOverlap {
-				continue
-			}
+			// Find shared keywords (we have count, need actual words for display)
+			// Intersection of keywords[i] and keywords[j]
+			sharedKW := intersectKeywords(keywords[i], keywords[j])
 
 			// Find shared labels
-			lbl1 := issueLabels[issue1.ID]
-			lbl2 := issueLabels[issue2.ID]
-			sharedLabels := findSharedKeys(lbl1, lbl2)
+			sharedLabels := findSharedKeys(issueLabels[i], issueLabels[j])
 
 			// Calculate confidence
 			baseConf := float64(len(sharedKW)) * 0.1
@@ -135,30 +169,30 @@ func DetectMissingDependencies(issues []model.Issue, config DependencySuggestion
 				baseConf = 0.5
 			}
 
-			// Check for exact title mentions
+			// Check for exact title mentions / ID mentions
 			title2Lower := strings.ToLower(issue2.Title)
 			id1Lower := strings.ToLower(issue1.ID)
 			id2Lower := strings.ToLower(issue2.ID)
 			desc1Lower := strings.ToLower(issue1.Description)
 			desc2Lower := strings.ToLower(issue2.Description)
 
-			// ID mentioned in other issue
+			// ID mentioned
 			if strings.Contains(desc2Lower, id1Lower) || strings.Contains(desc1Lower, id2Lower) {
 				baseConf += config.ExactMatchBonus * 2
 			}
 
 			// Title words of issue1 mentioned in issue2's title
-			for word := range kw1 {
+			// Use the keywords map for O(1) check? No, iterating kws of issue1 is fast.
+			for _, word := range keywords[i] {
 				if len(word) >= 5 && strings.Contains(title2Lower, word) {
 					baseConf += config.ExactMatchBonus
 					break
 				}
 			}
 
-			// Label overlap
+			// Label overlap bonus
 			baseConf += float64(len(sharedLabels)) * config.LabelOverlapBonus
 
-			// Cap confidence
 			if baseConf > 0.95 {
 				baseConf = 0.95
 			}
@@ -167,7 +201,7 @@ func DetectMissingDependencies(issues []model.Issue, config DependencySuggestion
 				continue
 			}
 
-			// Determine direction: older/lower priority tends to be dependency
+			// Determine direction
 			var from, to *model.Issue
 			if issue1.CreatedAt.Before(issue2.CreatedAt) || issue1.Priority < issue2.Priority {
 				from, to = issue2, issue1
