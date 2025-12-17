@@ -834,21 +834,49 @@ func defaultTutorialPages() []TutorialPage {
 		},
 
 		// =============================================================
-		// ADVANCED FEATURES (placeholder - bv-19gf)
+		// ADVANCED FEATURES (bv-19gf)
 		// =============================================================
+		{
+			ID:      "advanced-semantic-search",
+			Title:   "Semantic Search (~)",
+			Section: "Advanced",
+			Content: advancedSemanticSearchContent,
+		},
+		{
+			ID:      "advanced-time-travel",
+			Title:   "Time Travel",
+			Section: "Advanced",
+			Content: advancedTimeTravelContent,
+		},
+		{
+			ID:      "advanced-label-analytics",
+			Title:   "Label Analytics",
+			Section: "Advanced",
+			Content: advancedLabelAnalyticsContent,
+		},
+		{
+			ID:      "advanced-export",
+			Title:   "Export & Deployment",
+			Section: "Advanced",
+			Content: advancedExportContent,
+		},
+		{
+			ID:      "advanced-workspace",
+			Title:   "Workspace Mode",
+			Section: "Advanced",
+			Content: advancedWorkspaceContent,
+		},
+		{
+			ID:      "advanced-recipes",
+			Title:   "Recipes",
+			Section: "Advanced",
+			Content: advancedRecipesContent,
+		},
 		{
 			ID:      "advanced-ai",
 			Title:   "AI Agent Integration",
 			Section: "Advanced",
-			Content: `## AI Agent Integration
-
-bv works with **AI coding agents** through robot mode:
-
-` + "```bash\nbv --robot-triage   # Prioritized recommendations\nbv --robot-next     # Top priority item\nbv --robot-plan     # Parallel execution tracks\n```" + `
-
-See ` + "`AGENTS.md`" + ` for the complete AI integration guide.
-
-> More detailed content coming in bv-19gf.`,
+			Content: advancedAIAgentContent,
 		},
 
 		// =============================================================
@@ -1653,3 +1681,416 @@ When you press **Enter** on a historical commit, bv shows you:
 This is read-only — you're viewing the past, not changing it.
 
 > **Use case:** "What was our backlog like before the big refactor?"`
+
+// =============================================================================
+// ADVANCED FEATURES CONTENT (bv-19gf)
+// =============================================================================
+
+// advancedSemanticSearchContent is the Semantic Search tutorial page.
+const advancedSemanticSearchContent = `## Semantic Search (~)
+
+While **/** gives you fast fuzzy matching on text, **~** activates
+**semantic search** — finding issues by *meaning*, not just words.
+
+### Fuzzy vs Semantic
+
+| Feature | Fuzzy (/) | Semantic (~) |
+|---------|-----------|--------------|
+| Speed | Instant | ~1-2 seconds |
+| Typo tolerance | Yes | Yes |
+| Finds synonyms | No | Yes |
+| Requires API | No | Yes |
+
+### Example
+
+You're looking for issues about "user permissions":
+
+- **/** with "permissions" → finds issues containing "permissions"
+- **~** with "permissions" → finds issues about access control, roles,
+  authorization, ACLs, even if they don't use that exact word
+
+### Setting Up
+
+Semantic search requires an embedding API. Set your environment:
+
+` + "```bash\nexport OPENAI_API_KEY=sk-...\n# Or use local embeddings:\nexport EMBEDDING_MODEL=local\n```" + `
+
+Without an API key, **~** falls back to fuzzy search.
+
+### When to Use Semantic Search
+
+- **Exploratory**: "What do we have about performance?"
+- **Conceptual**: Finding related issues across different wording
+- **New to codebase**: Don't know the exact terminology yet
+
+### Usage Tips
+
+1. Use natural language: "issues about slow database queries"
+2. Be conceptual: "security vulnerabilities" finds auth bugs
+3. Combine with filters: filter to ` + "`r`" + ` (ready) first, then **~**
+
+> **Cost note:** Each semantic search makes an API call. Use fuzzy search
+> for quick lookups where you know the exact terms.
+
+> Press **→** to continue.`
+
+// advancedTimeTravelContent is the Time Travel tutorial page.
+const advancedTimeTravelContent = `## Time Travel (t/T)
+
+See how your project looked at any point in history — compare past to present.
+
+### Accessing Time Travel
+
+| Key | Action |
+|-----|--------|
+| **t** | Quick time travel to recent point |
+| **T** | Full time travel with git ref input |
+| **h** | History view (visual timeline) |
+
+### Git Reference Syntax
+
+Time travel understands git references:
+
+| Reference | Meaning |
+|-----------|---------|
+| ` + "`HEAD~5`" + ` | 5 commits ago |
+| ` + "`main`" + ` | Tip of main branch |
+| ` + "`v1.2.0`" + ` | Tagged release |
+| ` + "`@{2.weeks.ago}`" + ` | Two weeks back |
+
+### Example: Sprint Retrospective
+
+` + "```" + `
+1. Press T and enter "HEAD~50" (start of sprint)
+2. See: 45 open issues, 12 blocked
+3. Press Esc to return to present
+4. Now: 22 open, 3 blocked
+5. Diff shows: 23 closed, 9 unblocked!
+` + "```" + `
+
+### The Diff View
+
+When in time-travel mode, press **d** to see changes:
+
+` + "```" + `
+┌─────────────────────────────────────────────────────┐
+│ Changes: HEAD~50 → HEAD                             │
+├─────────────────────────────────────────────────────┤
+│ + Added: 8 issues                                   │
+│ - Closed: 23 issues                                 │
+│ ~ Modified: 12 issues                               │
+│                                                     │
+│ Cycles: 1 resolved, 0 introduced                    │
+└─────────────────────────────────────────────────────┘
+` + "```" + `
+
+### Use Cases
+
+- **Sprint review**: "What did we accomplish?"
+- **Debugging**: "When did this issue get blocked?"
+- **Onboarding**: "What was the project like 6 months ago?"
+- **Post-mortem**: "Show me the state when the bug was introduced"
+
+### Robot Mode Equivalent
+
+` + "```bash\nbv --robot-diff --diff-since HEAD~50\n```" + `
+
+Returns structured JSON with added/closed/modified counts.
+
+> Press **→** to continue.`
+
+// advancedLabelAnalyticsContent is the Label Analytics tutorial page.
+const advancedLabelAnalyticsContent = `## Label Analytics
+
+Labels are more than tags — they're a lens for understanding your project.
+
+### The Labels Dashboard ([)
+
+Press **[** to open the Labels dashboard:
+
+` + "```" + `
+┌─────────────────────────────────────────────────────┐
+│ LABEL           │ OPEN │ PROG │ BLOCK │ HEALTH     │
+├─────────────────┼──────┼──────┼───────┼────────────┤
+│ frontend        │   12 │    3 │     2 │ ▓▓▓▓▓░░░ ⚠ │
+│ backend         │    8 │    5 │     0 │ ▓▓▓▓▓▓▓░ ✓ │
+│ security        │    4 │    1 │     3 │ ▓▓░░░░░░ ⛔ │
+│ tech-debt       │   15 │    0 │     0 │ ▓▓▓░░░░░ ⚠ │
+└─────────────────────────────────────────────────────┘
+` + "```" + `
+
+### Health Indicators
+
+| Symbol | Meaning |
+|--------|---------|
+| ✓ | Healthy — good progress, few blockers |
+| ⚠ | Warning — stale items or slow velocity |
+| ⛔ | Critical — high blocked ratio, needs attention |
+
+### Health Score Factors
+
+1. **Velocity**: How fast are issues closing?
+2. **Staleness**: Are old issues piling up?
+3. **Blocked ratio**: What % is stuck?
+4. **Work distribution**: Is work spread evenly?
+
+### Label Flow Analysis
+
+Press **f** in Labels view to see cross-label flow:
+
+` + "```" + `
+frontend → backend: 5 dependencies
+backend → database: 3 dependencies
+security → * : 2 dependencies (blocks many areas)
+` + "```" + `
+
+This reveals **architectural coupling** — which areas block others.
+
+### Robot Mode Commands
+
+` + "```bash\nbv --robot-label-health              # Health metrics\nbv --robot-label-flow                # Cross-label deps\nbv --robot-label-attention --limit=5 # Top labels needing work\n```" + `
+
+### Strategic Use
+
+- **Balanced labels**: Similar health across areas = smooth progress
+- **Bottleneck labels**: High block count = address first
+- **Orphan labels**: Zero activity = maybe archive them
+
+> Press **→** to continue.`
+
+// advancedExportContent is the Export & Deployment tutorial page.
+const advancedExportContent = `## Export & Deployment
+
+Share your project status with people who don't use the terminal.
+
+### Quick Markdown Export (x)
+
+Press **x** in any view to export current state to markdown:
+
+` + "```markdown\n# Project Status - 2025-01-15\n\n## Open Issues (24)\n| ID | Priority | Title |\n|----|----------|-------|\n| bv-abc1 | P1 | Fix login timeout |\n...\n\n## Blocked Issues (5)\n...\n```" + `
+
+Great for:
+- Pasting into Slack/Discord
+- Email updates
+- Meeting notes
+
+### Static Site Generation (--pages)
+
+Generate a complete web dashboard:
+
+` + "```bash\nbv --pages                              # Interactive wizard\nbv --export-pages ./dashboard           # Export to directory\nbv --preview-pages ./dashboard          # Preview locally\n```" + `
+
+The output is **self-contained HTML** that works offline:
+- Triage recommendations
+- Dependency graph visualization
+- Full-text search
+- No server required
+
+### Deployment Options
+
+**GitHub Pages** (via wizard):
+
+` + "```bash\nbv --pages\n# Select: GitHub Pages\n# Follow prompts to configure\n```" + `
+
+**Cloudflare Pages** (manual):
+
+` + "```bash\nbv --export-pages ./dashboard --pages-title \"Sprint Status\"\n# Upload ./dashboard to Cloudflare Pages\n```" + `
+
+**Local sharing**:
+
+` + "```bash\nbv --export-pages ./share\n# Zip and send, or serve with any HTTP server\nnpx serve ./share\n```" + `
+
+### CI/CD Integration
+
+` + "```yaml\n# .github/workflows/dashboard.yml\njobs:\n  deploy:\n    steps:\n      - run: bv --export-pages ./pages --pages-title \"${{ github.ref_name }}\"\n      - uses: peaceiris/actions-gh-pages@v3\n        with:\n          publish_dir: ./pages\n```" + `
+
+> Press **→** to continue.`
+
+// advancedWorkspaceContent is the Workspace Mode tutorial page.
+const advancedWorkspaceContent = `## Workspace Mode
+
+Manage multiple repositories as a single unified project.
+
+### When to Use Workspaces
+
+- **Monorepo alternatives**: Multiple related repos
+- **Microservices**: Track issues across services
+- **Frontend + Backend**: Separate repos, unified view
+
+### Setting Up a Workspace
+
+Create a ` + "`.beads/workspace.json`" + `:
+
+` + "```json\n{\n  \"name\": \"My Product\",\n  \"repos\": [\n    { \"path\": \"../frontend\", \"prefix\": \"fe\" },\n    { \"path\": \"../backend\", \"prefix\": \"be\" },\n    { \"path\": \"../shared\", \"prefix\": \"sh\" }\n  ]\n}\n```" + `
+
+### Workspace Navigation
+
+| Key | Action |
+|-----|--------|
+| **w** | Toggle workspace picker |
+| **W** | Workspace-wide search |
+
+### Aggregated Views
+
+In workspace mode, all views aggregate across repos:
+
+` + "```" + `
+┌─────────────────────────────────────────────────────┐
+│ WORKSPACE: My Product (3 repos)                     │
+├─────────────────────────────────────────────────────┤
+│ fe-abc1  [P1] [bug] Frontend: Fix modal             │
+│ be-def2  [P1] [bug] Backend: API timeout            │
+│ sh-ghi3  [P2] [task] Shared: Update types           │
+└─────────────────────────────────────────────────────┘
+` + "```" + `
+
+### Cross-Repo Dependencies
+
+Issues can depend on issues in other repos:
+
+` + "```bash\nbd dep add fe-abc1 be-def2   # Frontend blocked by backend\n```" + `
+
+The graph view shows these cross-repo relationships.
+
+### Filtering by Repo
+
+| Key | Effect |
+|-----|--------|
+| **1** | Show only repo 1 issues |
+| **2** | Show only repo 2 issues |
+| **0** | Show all repos (workspace view) |
+
+### Robot Mode
+
+` + "```bash\nbv --robot-triage              # Workspace-wide triage\nbv --robot-plan               # Cross-repo execution plan\n```" + `
+
+> **Note:** Workspace mode requires all repos to be accessible locally.
+
+> Press **→** to continue.`
+
+// advancedRecipesContent is the Recipes tutorial page.
+const advancedRecipesContent = `## Recipes (R)
+
+Recipes are **saved filter combinations** — complex queries you use repeatedly.
+
+### Opening the Recipe Picker
+
+Press **R** (capital R) to open recipes:
+
+` + "```" + `
+┌─────────────────────────────────────────────────────┐
+│ RECIPES                                             │
+├─────────────────────────────────────────────────────┤
+│ ▶ Sprint Ready                                      │
+│   Open + Ready + Priority ≤ P2                      │
+│                                                     │
+│   This Week's Focus                                 │
+│   In Progress OR (Open + P0-P1)                     │
+│                                                     │
+│   Blocked Review                                    │
+│   Blocked + Updated > 3 days ago                    │
+│                                                     │
+│   Tech Debt Candidates                              │
+│   Labels: tech-debt + Priority ≥ P3                 │
+└─────────────────────────────────────────────────────┘
+` + "```" + `
+
+### Built-in Recipes
+
+| Recipe | What It Shows |
+|--------|---------------|
+| **Sprint Ready** | Actionable work for this sprint |
+| **Quick Wins** | Low-effort items (small scope) |
+| **Blocked Review** | Stuck items needing attention |
+| **High Impact** | Top PageRank scores (graph centrality) |
+| **Stale Items** | No updates in 2+ weeks |
+
+### Creating Custom Recipes
+
+Recipes are stored in ` + "`.beads/recipes.json`" + `:
+
+` + "```json\n{\n  \"recipes\": [\n    {\n      \"name\": \"My Team's Work\",\n      \"filter\": {\n        \"labels\": [\"team-alpha\"],\n        \"status\": [\"open\", \"in_progress\"],\n        \"priority_max\": 2\n      },\n      \"sort\": \"priority\"\n    }\n  ]\n}\n```" + `
+
+### Recipe Filters
+
+Available filter options:
+
+| Field | Example |
+|-------|---------|
+| ` + "`status`" + ` | ` + "`[\"open\", \"in_progress\"]`" + ` |
+| ` + "`labels`" + ` | ` + "`[\"frontend\", \"urgent\"]`" + ` |
+| ` + "`labels_exclude`" + ` | ` + "`[\"wontfix\"]`" + ` |
+| ` + "`priority_min`" + ` | ` + "`0`" + ` (P0 or higher) |
+| ` + "`priority_max`" + ` | ` + "`2`" + ` (P2 or lower) |
+| ` + "`type`" + ` | ` + "`[\"bug\", \"feature\"]`" + ` |
+| ` + "`assignee`" + ` | ` + "`\"@alice\"`" + ` |
+
+### Sharing Recipes
+
+Since recipes live in ` + "`.beads/`" + `, they're version controlled:
+
+- Commit your recipes to share with team
+- Different branches can have different recipes
+- Pull request to propose new team recipes
+
+### Robot Mode
+
+` + "```bash\nbv --recipe \"Sprint Ready\" --robot-triage\n```" + `
+
+Apply any recipe as a pre-filter for robot commands.
+
+> Press **→** to continue.`
+
+// advancedAIAgentContent is the AI Agent Integration tutorial page.
+const advancedAIAgentContent = `## AI Agent Integration
+
+bv is designed to work with **AI coding agents** — Claude, GPT, Codex, etc.
+
+### The Robot Mode Philosophy
+
+Regular bv is for humans. **Robot mode** is for agents:
+
+| Human | Agent |
+|-------|-------|
+| ` + "`bv`" + ` (interactive TUI) | ` + "`bv --robot-*`" + ` (JSON output) |
+| Visual navigation | Structured data parsing |
+| Keyboard shortcuts | Command flags |
+
+### Key Robot Commands
+
+` + "```bash\n# The mega-command: start here\nbv --robot-triage\n\n# Quick picks\nbv --robot-next         # Single top priority item\nbv --robot-plan         # Parallel execution tracks\n\n# Deep analysis\nbv --robot-insights     # PageRank, cycles, bottlenecks\nbv --robot-alerts       # Stale items, priority inversions\n```" + `
+
+### What --robot-triage Returns
+
+` + "```json\n{\n  \"quick_ref\": {\n    \"open_count\": 24,\n    \"actionable_count\": 18,\n    \"top_picks\": [...]\n  },\n  \"recommendations\": [\n    {\n      \"id\": \"bv-abc1\",\n      \"score\": 0.85,\n      \"reasons\": [\"High PageRank\", \"Unblocks 3 items\"],\n      \"action\": \"work\"\n    }\n  ],\n  \"quick_wins\": [...],\n  \"blockers_to_clear\": [...]\n}\n```" + `
+
+### Agent Workflow Example
+
+` + "```" + `
+1. Agent calls: bv --robot-next
+2. Receives: { "id": "bv-abc1", "title": "Fix auth" }
+3. Agent runs: bd update bv-abc1 --status=in_progress
+4. Agent does the work...
+5. Agent runs: bd close bv-abc1
+6. Agent calls: bv --robot-next (repeat)
+` + "```" + `
+
+### The bd CLI (for Agents)
+
+| Command | Purpose |
+|---------|---------|
+| ` + "`bd ready`" + ` | List actionable issues |
+| ` + "`bd update <id> --status=in_progress`" + ` | Claim work |
+| ` + "`bd close <id>`" + ` | Complete work |
+| ` + "`bd sync`" + ` | Commit changes to git |
+
+### AGENTS.md Integration
+
+Every project should have an ` + "`AGENTS.md`" + ` file explaining:
+- How to use bv robot commands
+- Project-specific workflows
+- Integration with other tools
+
+See this project's AGENTS.md for a complete example.
+
+> Press **→** to continue to Reference section.`

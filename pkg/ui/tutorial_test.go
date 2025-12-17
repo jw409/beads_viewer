@@ -662,7 +662,8 @@ func TestTutorialMarkdownWithCodeBlocks(t *testing.T) {
 	m.SetSize(100, 60) // Larger to show more content
 
 	// Navigate to the "AI Agent Integration" page which has code blocks
-	m.JumpToPage(17) // Index 17 is "advanced-ai" (after intro x4, concepts x5, views x8)
+	// Page indices: intro x4, concepts x5, views x8, advanced x7 (semantic-search, time-travel, label-analytics, export, workspace, recipes, ai)
+	m.JumpToPage(23) // Index 23 is "advanced-ai"
 
 	view := m.View()
 

@@ -107,6 +107,11 @@ func main() {
 	historySince := flag.String("history-since", "", "Limit history to commits after this date/ref (e.g., '30 days ago', '2024-01-01')")
 	historyLimit := flag.Int("history-limit", 500, "Max commits to analyze (0 = unlimited)")
 	minConfidence := flag.Float64("min-confidence", 0.0, "Filter correlations by minimum confidence (0.0-1.0)")
+	// File-bead index flags (bv-hmib)
+	robotFileBeads := flag.String("robot-file-beads", "", "Output beads that touched a file path as JSON")
+	fileBeadsLimit := flag.Int("file-beads-limit", 20, "Max closed beads to show (use with --robot-file-beads)")
+	fileHotspots := flag.Bool("robot-file-hotspots", false, "Output files touched by most beads as JSON")
+	hotspotsLimit := flag.Int("hotspots-limit", 10, "Max hotspots to show (use with --robot-file-hotspots)")
 	// Sprint flags (bv-156)
 	robotSprintList := flag.Bool("robot-sprint-list", false, "Output sprints as JSON")
 	robotSprintShow := flag.String("robot-sprint-show", "", "Output specific sprint details as JSON")
@@ -183,6 +188,8 @@ func main() {
 		*robotSearch ||
 		*robotDriftCheck ||
 		*robotHistory ||
+		*robotFileBeads != "" ||
+		*fileHotspots ||
 		*robotSprintList ||
 		*robotSprintShow != "" ||
 		*robotForecast != "" ||
@@ -290,6 +297,30 @@ func main() {
 		fmt.Println("      - --min-confidence <0.0-1.0>: Filter by minimum confidence score")
 		fmt.Println("      Example: bv --robot-history --history-since '30 days ago'")
 		fmt.Println("      Example: bv --robot-history --min-confidence 0.7")
+		fmt.Println("")
+		fmt.Println("  --robot-file-beads <path>")
+		fmt.Println("      Outputs beads that have touched a file path as JSON.")
+		fmt.Println("      Answers: 'What beads have touched this file, and why?'")
+		fmt.Println("      Key sections:")
+		fmt.Println("      - file_path: The queried file path")
+		fmt.Println("      - open_beads: Currently open beads that touched this file")
+		fmt.Println("      - closed_beads: Recently closed beads (limited by --file-beads-limit)")
+		fmt.Println("      - total_beads: Total count of beads")
+		fmt.Println("      Each bead includes: bead_id, title, status, commit_shas, last_touch, total_changes")
+		fmt.Println("      Flags:")
+		fmt.Println("      - --file-beads-limit <n>: Max closed beads to show (default: 20)")
+		fmt.Println("      Example: bv --robot-file-beads pkg/auth/token.go")
+		fmt.Println("      Example: bv --robot-file-beads pkg/auth")
+		fmt.Println("")
+		fmt.Println("  --robot-file-hotspots")
+		fmt.Println("      Outputs files touched by the most beads as JSON.")
+		fmt.Println("      Identifies potential conflict zones or high-churn areas.")
+		fmt.Println("      Key sections:")
+		fmt.Println("      - hotspots: Array of {file_path, total_beads, open_beads, closed_beads}")
+		fmt.Println("      - stats: Index statistics (total_files, total_bead_links)")
+		fmt.Println("      Flags:")
+		fmt.Println("      - --hotspots-limit <n>: Max hotspots to show (default: 10)")
+		fmt.Println("      Example: bv --robot-file-hotspots")
 		fmt.Println("")
 		fmt.Println("  --robot-sprint-list")
 		fmt.Println("      Outputs all sprints as JSON for planning and forecasting.")
@@ -2572,6 +2603,114 @@ func main() {
 		if err := encoder.Encode(report); err != nil {
 			fmt.Fprintf(os.Stderr, "Error encoding history report: %v\n", err)
 			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Handle --robot-file-beads and --robot-file-hotspots flags (bv-hmib)
+	if *robotFileBeads != "" || *fileHotspots {
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Validate repository
+		if err := correlation.ValidateRepository(cwd); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Resolve beads file path
+		beadsDir, err := loader.GetBeadsDir("")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting beads directory: %v\n", err)
+			os.Exit(1)
+		}
+		beadsPath, err := loader.FindJSONLPath(beadsDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error finding beads file: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Convert issues to BeadInfo for correlator
+		beadInfos := make([]correlation.BeadInfo, len(issues))
+		for i, issue := range issues {
+			beadInfos[i] = correlation.BeadInfo{
+				ID:     issue.ID,
+				Title:  issue.Title,
+				Status: string(issue.Status),
+			}
+		}
+
+		// Generate history report first
+		correlator := correlation.NewCorrelator(cwd, beadsPath)
+		report, err := correlator.GenerateReport(beadInfos, correlation.CorrelatorOptions{
+			Limit: *historyLimit,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating history report: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Create file lookup
+		fileLookup := correlation.NewFileLookup(report)
+
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+
+		if *fileHotspots {
+			// Output hotspots
+			type HotspotsOutput struct {
+				GeneratedAt time.Time                   `json:"generated_at"`
+				DataHash    string                      `json:"data_hash"`
+				Hotspots    []correlation.FileHotspot   `json:"hotspots"`
+				Stats       correlation.FileIndexStats  `json:"stats"`
+			}
+
+			hotspots := fileLookup.GetHotspots(*hotspotsLimit)
+			output := HotspotsOutput{
+				GeneratedAt: time.Now(),
+				DataHash:    report.DataHash,
+				Hotspots:    hotspots,
+				Stats:       fileLookup.GetStats(),
+			}
+
+			if err := encoder.Encode(output); err != nil {
+				fmt.Fprintf(os.Stderr, "Error encoding hotspots: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			// Output file-beads lookup
+			result := fileLookup.LookupByFile(*robotFileBeads)
+
+			// Limit closed beads if specified
+			if len(result.ClosedBeads) > *fileBeadsLimit {
+				result.ClosedBeads = result.ClosedBeads[:*fileBeadsLimit]
+			}
+
+			type FileBeadsOutput struct {
+				GeneratedAt time.Time                      `json:"generated_at"`
+				DataHash    string                         `json:"data_hash"`
+				FilePath    string                         `json:"file_path"`
+				TotalBeads  int                            `json:"total_beads"`
+				OpenBeads   []correlation.BeadReference    `json:"open_beads"`
+				ClosedBeads []correlation.BeadReference    `json:"closed_beads"`
+			}
+
+			output := FileBeadsOutput{
+				GeneratedAt: time.Now(),
+				DataHash:    report.DataHash,
+				FilePath:    *robotFileBeads,
+				TotalBeads:  result.TotalBeads,
+				OpenBeads:   result.OpenBeads,
+				ClosedBeads: result.ClosedBeads,
+			}
+
+			if err := encoder.Encode(output); err != nil {
+				fmt.Fprintf(os.Stderr, "Error encoding file beads: %v\n", err)
+				os.Exit(1)
+			}
 		}
 		os.Exit(0)
 	}
