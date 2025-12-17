@@ -140,6 +140,10 @@ func (l *AggregateLoader) loadReposParallel(ctx context.Context, repos []RepoCon
 		return results, err
 	}
 
+	if l.logger != nil {
+		l.logger.Printf("Finished parallel loading of %d repos", len(repos))
+	}
+
 	return results, nil
 }
 
