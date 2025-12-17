@@ -215,7 +215,7 @@ const contextHelpFilter = `## Filter Mode
 
 **Search**
   /         Start fuzzy search
-  ~         Semantic search (AI)
+  Ctrl+S    Semantic search (AI)
   n/N       Next/prev match
   Esc       Clear search
 

@@ -710,7 +710,7 @@ func TestGetBlurbVersionEdgeCases(t *testing.T) {
 		{
 			name:     "malformed version with letters",
 			content:  "<!-- bv-agent-instructions-v1a -->",
-			expected: 0, // \d+ won't match "1a"
+			expected: 0, // \d+ matches "1" but then pattern expects " -->" not "a -->"
 		},
 		{
 			name:     "multiple version markers returns first",
