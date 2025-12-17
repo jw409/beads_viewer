@@ -1279,12 +1279,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Handle shortcuts sidebar toggle (F2) - bv-3qi5
-		if msg.String() == "f2" && m.list.FilterState() != list.Filtering {
+		// Handle shortcuts sidebar toggle (; or F2) - bv-3qi5
+		if (msg.String() == ";" || msg.String() == "f2") && m.list.FilterState() != list.Filtering {
 			m.showShortcutsSidebar = !m.showShortcutsSidebar
 			if m.showShortcutsSidebar {
 				m.shortcutsSidebar.ResetScroll()
-				m.statusMsg = "Shortcuts sidebar: F2 hide | ctrl+j/k scroll"
+				m.statusMsg = "Shortcuts sidebar: ; hide | ctrl+j/k scroll"
 				m.statusIsError = false
 			} else {
 				m.statusMsg = ""
@@ -1535,7 +1535,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 
-			case "f3":
+			case "[", "f3":
 				// Open label dashboard (phase 1: table view)
 				m.clearAttentionOverlay()
 				m.isGraphView = false
@@ -1554,7 +1554,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusIsError = false
 				return m, nil
 
-			case "f4":
+			case "]", "f4":
 				// Attention view: compute attention scores (cached) and render as text
 				if !m.attentionCached {
 					cfg := analysis.DefaultLabelHealthConfig()
@@ -1615,7 +1615,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 
-			case "f5":
+			case "'", "f5":
 				// Toggle recipe picker overlay
 				m.showRecipePicker = !m.showRecipePicker
 				if m.showRecipePicker {
@@ -2661,12 +2661,12 @@ func (m *Model) renderHelpOverlay() string {
 		{"h", "Toggle History view"},
 		{"i", "Toggle Insights dashboard"},
 		{"f", "Toggle Flow matrix"},
-		{"F3", "Label dashboard"},
-		{"F4", "Attention view"},
-		{"F5", "Recipe picker"},
+		{"[", "Label dashboard"},
+		{"]", "Attention view"},
+		{"'", "Recipe picker"},
 		{"w", "Repo filter (workspace mode)"},
-		{"? / F1", "Toggle this help"},
-		{"F2", "Toggle shortcuts sidebar"},
+		{"?", "Toggle this help"},
+		{";", "Toggle shortcuts sidebar"},
 	}
 	for _, s := range views {
 		sb.WriteString(keyStyle.Render(s.key) + descStyle.Render(s.desc) + "\n")

@@ -40,6 +40,21 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
             --radius: 12px;
             --radius-lg: 16px;
         }
+        /* Light mode overrides */
+        body.light-mode {
+            --bg: #f8f9fc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f0f2f5;
+            --bg-elevated: #e8eaf0;
+            --bg-glass: rgba(255, 255, 255, 0.9);
+            --fg: #1a1a2e;
+            --fg-muted: #555577;
+            --fg-dim: #8888aa;
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        body.light-mode #graph-container {
+            background: radial-gradient(ellipse at center, #ffffff 0%%, #f0f2f5 100%%);
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -168,6 +183,43 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
 
         /* Main */
         main { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+        /* Detail Sidebar (Left - Docked Mode) */
+        #detail-sidebar {
+            width: 420px;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%%, var(--bg) 100%%);
+            border-right: 1px solid var(--purple);
+            overflow-y: auto; padding: 0;
+            display: flex; flex-direction: column;
+            transition: width 0.3s ease, opacity 0.3s ease;
+        }
+        #detail-sidebar.collapsed { width: 0; padding: 0; overflow: hidden; opacity: 0; }
+        #detail-sidebar .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 1.25rem; background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--bg-elevated);
+            position: sticky; top: 0; z-index: 5;
+        }
+        #detail-sidebar .panel-header h3 {
+            font-size: 0.9rem; font-weight: 600; color: var(--fg);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        #detail-sidebar .panel-header .icon { color: var(--gold); }
+        .detach-btn {
+            background: var(--bg-elevated); border: 1px solid var(--fg-dim);
+            color: var(--fg-muted); padding: 0.375rem 0.75rem; border-radius: 6px;
+            cursor: pointer; font-size: 0.75rem; transition: all 0.15s ease;
+            display: flex; align-items: center; gap: 0.375rem;
+        }
+        .detach-btn:hover { background: var(--purple); color: white; border-color: var(--purple); }
+        #detail-sidebar .no-selection {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 300px; color: var(--fg-muted); text-align: center; padding: 2rem;
+        }
+        #detail-sidebar .no-selection-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+        #detail-sidebar .no-selection-text { font-size: 0.875rem; }
+        #detail-sidebar .detail-content { padding: 1.25rem; flex: 1; }
+
         #graph-wrapper { flex: 1; position: relative; }
         #graph-container {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -187,7 +239,7 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
         .overlay-stats .stat { display: flex; align-items: center; gap: 0.375rem; }
         .overlay-stats .stat-value { color: var(--cyan); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 
-        /* Hover Panel - Full Details */
+        /* Hover Panel - Full Details (Floating Mode) */
         #hover-panel {
             position: absolute; top: 1rem; left: 50%%; transform: translateX(-50%%);
             background: var(--bg-glass); backdrop-filter: blur(20px);
@@ -198,7 +250,14 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
             display: none;
         }
         #hover-panel.visible { display: block; animation: panelIn 0.2s ease-out; }
+        #hover-panel.docked { display: none !important; } /* Hidden when docked mode active */
         @keyframes panelIn { from { opacity: 0; transform: translateX(-50%%) translateY(-10px); } }
+
+        /* Docked Panel Content - inside detail-sidebar */
+        #docked-panel {
+            display: none;
+        }
+        #docked-panel.visible { display: block; }
         .hover-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
         .hover-id { font-family: 'JetBrains Mono', monospace; font-size: 1rem; color: var(--cyan); font-weight: 600; }
         .hover-type-badge {
@@ -436,19 +495,93 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
         .top-node-item:hover { background: var(--bg-elevated); transform: translateX(4px); }
         .top-node-item .rank { color: var(--gold); font-weight: 600; }
 
-        /* Heatmap Legend */
+        /* Heatmap Legend - Always visible */
         .heatmap-legend {
             position: absolute; bottom: 1rem; right: 1rem;
             background: var(--bg-glass); backdrop-filter: blur(15px);
-            border: 1px solid var(--purple); border-radius: var(--radius);
-            padding: 0.75rem; z-index: 10; display: none;
+            border: 1px solid var(--fg-dim); border-radius: var(--radius);
+            padding: 0.75rem; z-index: 10;
+            transition: all 0.2s ease;
         }
-        .heatmap-legend.visible { display: block; }
+        .heatmap-legend.heatmap-active { border-color: var(--gold); box-shadow: 0 0 20px var(--gold-glow); }
         .heatmap-gradient {
             width: 140px; height: 14px;
             background: linear-gradient(90deg, var(--green), var(--yellow), var(--orange), var(--red));
             border-radius: 4px; margin-bottom: 0.375rem;
         }
+
+        /* Mini-map */
+        .minimap {
+            position: absolute; bottom: 5rem; right: 1rem;
+            width: 160px; height: 120px;
+            background: var(--bg-glass); backdrop-filter: blur(15px);
+            border: 1px solid var(--fg-dim); border-radius: var(--radius);
+            overflow: hidden; z-index: 10;
+        }
+        .minimap canvas { width: 100%%; height: 100%%; }
+        .minimap-viewport {
+            position: absolute; border: 2px solid var(--gold);
+            background: rgba(251, 191, 36, 0.1); pointer-events: none;
+        }
+
+        /* Help Overlay */
+        .help-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            z-index: 1000; display: none; align-items: center; justify-content: center;
+        }
+        .help-overlay.visible { display: flex; }
+        .help-content {
+            background: var(--bg-secondary); border: 1px solid var(--purple);
+            border-radius: var(--radius-lg); padding: 2rem; max-width: 700px;
+            max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow-glow);
+        }
+        .help-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--gold); }
+        .help-section { margin-bottom: 1.5rem; }
+        .help-section-title { font-size: 0.8rem; font-weight: 600; color: var(--purple); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+        .help-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+        .help-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; }
+        .help-key {
+            background: var(--bg-elevated); padding: 0.25rem 0.5rem; border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; min-width: 2rem; text-align: center;
+            border: 1px solid var(--fg-dim);
+        }
+        .help-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--fg-muted); cursor: pointer; font-size: 1.5rem; }
+
+        /* Recently Viewed */
+        .recent-panel {
+            position: absolute; top: 60px; left: 1rem;
+            background: var(--bg-glass); backdrop-filter: blur(15px);
+            border: 1px solid var(--purple); border-radius: var(--radius);
+            padding: 0.75rem; z-index: 10; width: 200px; display: none;
+        }
+        .recent-panel.visible { display: block; }
+        .recent-title { font-size: 0.7rem; font-weight: 600; color: var(--fg-muted); text-transform: uppercase; margin-bottom: 0.5rem; }
+        .recent-item {
+            padding: 0.375rem 0.5rem; font-size: 0.75rem; cursor: pointer;
+            border-radius: 4px; transition: all 0.15s ease;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .recent-item:hover { background: var(--bg-elevated); }
+        .recent-item .recent-id { color: var(--cyan); font-family: 'JetBrains Mono', monospace; }
+
+        /* Path Finder Mode */
+        .pathfinder-banner {
+            position: absolute; top: 4rem; left: 50%%; transform: translateX(-50%%);
+            background: var(--gold); color: #0f0f1a; padding: 0.5rem 1rem;
+            border-radius: var(--radius); font-weight: 600; font-size: 0.875rem;
+            z-index: 100; display: none; animation: pulse 1.5s infinite;
+        }
+        .pathfinder-banner.visible { display: block; }
+        @keyframes pulse { 0%%, 100%% { opacity: 1; } 50%% { opacity: 0.7; } }
+
+        /* Edge Label Tooltip */
+        .edge-tooltip {
+            position: absolute; background: var(--bg-elevated); border: 1px solid var(--purple);
+            padding: 0.375rem 0.625rem; border-radius: 6px; font-size: 0.75rem;
+            pointer-events: none; z-index: 100; display: none; white-space: nowrap;
+        }
+        .edge-tooltip.visible { display: block; }
         .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--fg-muted); }
 
         /* Scrollbar */
@@ -471,7 +604,7 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
                 <div class="search-results" id="search-results"></div>
             </div>
             <div class="toolbar-group">
-                <select id="view-mode">
+                <select id="view-mode" title="Graph layout mode: Force (physics simulation), DAG (directed acyclic graph), or Radial. Press 1-4 for shortcuts.">
                     <option value="force">Force</option>
                     <option value="td">DAG ↓</option>
                     <option value="lr">DAG →</option>
@@ -479,14 +612,14 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
                 </select>
             </div>
             <div class="toolbar-group">
-                <select id="filter-status">
+                <select id="filter-status" title="Filter nodes by status. Shows only beads matching the selected status.">
                     <option value="">All Status</option>
                     <option value="open">Open</option>
                     <option value="in_progress">In Progress</option>
                     <option value="blocked">Blocked</option>
                     <option value="closed">Closed</option>
                 </select>
-                <select id="filter-type">
+                <select id="filter-type" title="Filter nodes by type. Shows only beads matching the selected type.">
                     <option value="">All Types</option>
                     <option value="feature">Feature</option>
                     <option value="bug">Bug</option>
@@ -495,7 +628,7 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
                 </select>
             </div>
             <div class="toolbar-group">
-                <select id="size-by">
+                <select id="size-by" title="Control what metric determines node size. Larger nodes have higher values of the selected metric.">
                     <option value="pagerank">Size: PageRank</option>
                     <option value="betweenness">Size: Betweenness</option>
                     <option value="critical">Size: Critical Path</option>
@@ -503,15 +636,88 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
                 </select>
             </div>
             <div class="toolbar-group">
-                <button id="btn-heatmap" title="Toggle Heatmap">🔥</button>
-                <button id="btn-triage" title="Triage View">📋</button>
-                <button id="btn-top" title="Top Nodes">⭐</button>
-                <button id="btn-fit" title="Fit (F)">Fit</button>
-                <button id="btn-reset" title="Reset (R)">Reset</button>
+                <select id="filter-priority" title="Filter nodes by priority level (P0=critical, P4=backlog)">
+                    <option value="">All Priorities</option>
+                    <option value="0">P0 Critical</option>
+                    <option value="1">P1 High</option>
+                    <option value="2">P2 Medium</option>
+                    <option value="3">P3 Low</option>
+                    <option value="4">P4 Backlog</option>
+                </select>
+                <select id="filter-label" title="Filter nodes by label">
+                    <option value="">All Labels</option>
+                </select>
+            </div>
+            <div class="toolbar-group">
+                <button id="btn-heatmap" title="Toggle heatmap coloring - shows node importance by color intensity (H)">🔥</button>
+                <button id="btn-triage" title="Show/hide triage recommendations panel with prioritized work items (G)">📋</button>
+                <button id="btn-top" title="Show/hide top nodes panel with highest PageRank nodes (T)">⭐</button>
+                <button id="btn-recent" title="Show/hide recently viewed nodes (Y)">🕐</button>
+                <button id="btn-path" title="Enter path finder mode - click two nodes to find shortest path (P)">🛤️</button>
+                <button id="btn-theme" title="Switch to light mode (L)">☀️</button>
+                <button id="btn-help" title="Show keyboard shortcuts and help (?)">❓</button>
+                <button id="btn-fit" title="Fit all nodes in view (F)">Fit</button>
+                <button id="btn-reset" title="Reset graph to initial state with all filters cleared (R)">Reset</button>
             </div>
         </div>
     </header>
     <main>
+        <div id="detail-sidebar">
+            <div class="panel-header">
+                <h3><span class="icon">✨</span> Bead Details</h3>
+                <button class="detach-btn" id="btn-detach" title="Detach panel (D)">
+                    <span>⇱</span> Detach
+                </button>
+            </div>
+            <div id="docked-no-selection" class="no-selection">
+                <div class="no-selection-icon">🔍</div>
+                <div class="no-selection-text">Hover over a node to see details</div>
+            </div>
+            <div id="docked-panel" class="detail-content">
+                <div class="hover-header">
+                    <span class="hover-id" id="docked-id">-</span>
+                    <span class="hover-type-badge" id="docked-type-badge">-</span>
+                </div>
+                <div class="hover-title" id="docked-title">-</div>
+                <div class="hover-badges" id="docked-badges"></div>
+                <div id="docked-description" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Description</div>
+                    <div class="hover-content" id="docked-description-content"></div>
+                </div>
+                <div id="docked-design" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Design</div>
+                    <div class="hover-content" id="docked-design-content"></div>
+                </div>
+                <div id="docked-acceptance" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Acceptance Criteria</div>
+                    <div class="hover-content" id="docked-acceptance-content"></div>
+                </div>
+                <div id="docked-notes" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Notes</div>
+                    <div class="hover-content" id="docked-notes-content"></div>
+                </div>
+                <div class="hover-section">
+                    <div class="hover-section-title">Metadata</div>
+                    <div class="hover-meta" id="docked-meta"></div>
+                </div>
+                <div id="docked-blocked-by" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Blocked By</div>
+                    <div class="hover-deps" id="docked-blocked-by-list"></div>
+                </div>
+                <div id="docked-blocks" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Blocks</div>
+                    <div class="hover-deps" id="docked-blocks-list"></div>
+                </div>
+                <div id="docked-commits" class="hover-section" style="display:none;">
+                    <div class="hover-section-title">Related Commits</div>
+                    <div class="hover-commits" id="docked-commits-list"></div>
+                </div>
+                <div class="hover-section">
+                    <div class="hover-section-title">Graph Metrics</div>
+                    <div class="hover-meta" id="docked-metrics"></div>
+                </div>
+            </div>
+        </div>
         <div id="graph-wrapper">
             <div id="graph-container"></div>
             <div class="overlay-stats">
@@ -519,12 +725,22 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
                 <div class="stat"><span class="stat-value">%d</span> edges</div>
                 <div class="stat" id="stat-visible"><span class="stat-value">%d</span> visible</div>
             </div>
-            <button class="fullscreen-btn" id="btn-fullscreen" title="Fullscreen (Space)">⛶</button>
+            <button class="fullscreen-btn" id="btn-fullscreen" title="Toggle fullscreen mode for immersive graph viewing (Space)">⛶</button>
             <div class="top-nodes-panel" id="top-nodes-panel"></div>
             <div class="heatmap-legend" id="heatmap-legend">
                 <div class="heatmap-gradient"></div>
                 <div class="heatmap-labels"><span>Low</span><span id="heatmap-metric">PageRank</span><span>High</span></div>
             </div>
+            <div class="minimap" id="minimap">
+                <canvas id="minimap-canvas"></canvas>
+                <div class="minimap-viewport" id="minimap-viewport"></div>
+            </div>
+            <div class="recent-panel" id="recent-panel">
+                <div class="recent-title">Recently Viewed</div>
+                <div id="recent-list"></div>
+            </div>
+            <div class="pathfinder-banner" id="pathfinder-banner">🔗 Path Finder: Click destination node (Esc to cancel)</div>
+            <div class="edge-tooltip" id="edge-tooltip"></div>
             <div id="hover-panel">
                 <button class="hover-close" id="hover-close">×</button>
                 <div class="hover-header">
@@ -652,6 +868,53 @@ func generateUltimateHTML(title, dataHash, graphDataJSON string, nodeCount, edge
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" id="ctx-path">🛤️ Find path to...</div>
         <div class="context-menu-item" id="ctx-copy">📋 Copy ID</div>
+    </div>
+    <div class="help-overlay" id="help-overlay">
+        <div class="help-content">
+            <button class="help-close" id="help-close">×</button>
+            <div class="help-title">⌨️ Keyboard Shortcuts</div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation</div>
+                <div class="help-grid">
+                    <div class="help-item"><span class="help-key">F</span> Fit all nodes in view</div>
+                    <div class="help-item"><span class="help-key">R</span> Reset to initial state</div>
+                    <div class="help-item"><span class="help-key">Space</span> Toggle fullscreen</div>
+                    <div class="help-item"><span class="help-key">Esc</span> Clear selection</div>
+                </div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Views & Panels</div>
+                <div class="help-grid">
+                    <div class="help-item"><span class="help-key">D</span> Dock/detach detail panel</div>
+                    <div class="help-item"><span class="help-key">L</span> Toggle light/dark mode</div>
+                    <div class="help-item"><span class="help-key">H</span> Toggle heatmap coloring</div>
+                    <div class="help-item"><span class="help-key">T</span> Show top nodes panel</div>
+                    <div class="help-item"><span class="help-key">G</span> Show triage panel</div>
+                    <div class="help-item"><span class="help-key">Y</span> Show recently viewed</div>
+                    <div class="help-item"><span class="help-key">P</span> Enter path finder mode</div>
+                    <div class="help-item"><span class="help-key">?</span> Show this help</div>
+                </div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Layout Modes</div>
+                <div class="help-grid">
+                    <div class="help-item"><span class="help-key">1</span> Force-directed layout</div>
+                    <div class="help-item"><span class="help-key">2</span> DAG top-down</div>
+                    <div class="help-item"><span class="help-key">3</span> DAG left-right</div>
+                    <div class="help-item"><span class="help-key">4</span> Radial layout</div>
+                </div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Mouse</div>
+                <div class="help-grid">
+                    <div class="help-item"><span class="help-key">Hover</span> Show node details</div>
+                    <div class="help-item"><span class="help-key">Click</span> Select node</div>
+                    <div class="help-item"><span class="help-key">Right-click</span> Context menu</div>
+                    <div class="help-item"><span class="help-key">Scroll</span> Zoom in/out</div>
+                    <div class="help-item"><span class="help-key">Drag</span> Pan the view</div>
+                </div>
+            </div>
+        </div>
     </div>
     <script>%s</script>
     <script>%s</script>
@@ -864,33 +1127,37 @@ const Graph = ForceGraph()(container)
     .onBackgroundClick(() => { clearSelection(); hideContextMenu(); hideHoverPanel(); })
     .onBackgroundRightClick(() => hideContextMenu());
 
-// Hover handling with golden glow
+// Hover handling with golden glow and detail panel
 function handleNodeHover(node) {
     hoveredNode = node;
     container.style.cursor = node ? 'pointer' : 'grab';
     if (node) {
         highlightedNodes = getConnectedNodes(node.id, 2);
+        showHoverPanel(node);
     } else {
         highlightedNodes = new Set();
+        hideHoverPanel();
     }
     Graph.nodeColor(Graph.nodeColor()); // Trigger re-render
     Graph.linkColor(Graph.linkColor());
     Graph.linkWidth(Graph.linkWidth());
 }
 
-// Show full details hover panel
-function showHoverPanel(node) {
-    const panel = document.getElementById('hover-panel');
-    document.getElementById('hover-id').textContent = node.id;
-    document.getElementById('hover-title').textContent = node.title;
+// Panel mode: 'docked' (left sidebar) or 'floating' (center overlay)
+let panelMode = 'docked';
+
+// Populate panel content for a given prefix (hover- or docked-)
+function populatePanelContent(prefix, node) {
+    document.getElementById(prefix + 'id').textContent = node.id;
+    document.getElementById(prefix + 'title').textContent = node.title;
 
     // Type badge
-    const typeBadge = document.getElementById('hover-type-badge');
+    const typeBadge = document.getElementById(prefix + 'type-badge');
     typeBadge.textContent = node.type || 'task';
     typeBadge.className = 'hover-type-badge badge-' + (node.type || 'task');
 
     // Badges
-    const badgesEl = document.getElementById('hover-badges');
+    const badgesEl = document.getElementById(prefix + 'badges');
     badgesEl.innerHTML = '';
     const addBadge = (cls, text) => { const b = document.createElement('span'); b.className = 'badge ' + cls; b.textContent = text; badgesEl.appendChild(b); };
     addBadge('badge-' + node.status, node.status.replace('_', ' '));
@@ -900,35 +1167,35 @@ function showHoverPanel(node) {
     (node.labels || []).forEach(l => addBadge('badge-type', l));
 
     // Description
-    const descSection = document.getElementById('hover-description');
+    const descSection = document.getElementById(prefix + 'description');
     if (node.description) {
         descSection.style.display = 'block';
-        document.getElementById('hover-description-content').innerHTML = marked.parse(node.description);
+        document.getElementById(prefix + 'description-content').innerHTML = marked.parse(node.description);
     } else { descSection.style.display = 'none'; }
 
     // Design
-    const designSection = document.getElementById('hover-design');
+    const designSection = document.getElementById(prefix + 'design');
     if (node.design) {
         designSection.style.display = 'block';
-        document.getElementById('hover-design-content').innerHTML = marked.parse(node.design);
+        document.getElementById(prefix + 'design-content').innerHTML = marked.parse(node.design);
     } else { designSection.style.display = 'none'; }
 
     // Acceptance Criteria
-    const acSection = document.getElementById('hover-acceptance');
+    const acSection = document.getElementById(prefix + 'acceptance');
     if (node.acceptance_criteria) {
         acSection.style.display = 'block';
-        document.getElementById('hover-acceptance-content').innerHTML = marked.parse(node.acceptance_criteria);
+        document.getElementById(prefix + 'acceptance-content').innerHTML = marked.parse(node.acceptance_criteria);
     } else { acSection.style.display = 'none'; }
 
     // Notes
-    const notesSection = document.getElementById('hover-notes');
+    const notesSection = document.getElementById(prefix + 'notes');
     if (node.notes) {
         notesSection.style.display = 'block';
-        document.getElementById('hover-notes-content').innerHTML = marked.parse(node.notes);
+        document.getElementById(prefix + 'notes-content').innerHTML = marked.parse(node.notes);
     } else { notesSection.style.display = 'none'; }
 
     // Metadata
-    const metaEl = document.getElementById('hover-meta');
+    const metaEl = document.getElementById(prefix + 'meta');
     metaEl.innerHTML = '';
     const addMeta = (label, value) => {
         if (!value) return;
@@ -941,31 +1208,31 @@ function showHoverPanel(node) {
     if (node.closed_at) addMeta('Closed', node.closed_at);
 
     // Blocked By
-    const blockedBySection = document.getElementById('hover-blocked-by');
-    const blockedByList = document.getElementById('hover-blocked-by-list');
+    const blockedBySection = document.getElementById(prefix + 'blocked-by');
+    const blockedByList = document.getElementById(prefix + 'blocked-by-list');
     if (node.blocked_by && node.blocked_by.length > 0) {
         blockedBySection.style.display = 'block';
         blockedByList.innerHTML = node.blocked_by.map(id => '<span class="hover-dep-chip" data-id="' + id + '">' + id + '</span>').join('');
     } else { blockedBySection.style.display = 'none'; }
 
     // Blocks
-    const blocksSection = document.getElementById('hover-blocks');
-    const blocksList = document.getElementById('hover-blocks-list');
+    const blocksSection = document.getElementById(prefix + 'blocks');
+    const blocksList = document.getElementById(prefix + 'blocks-list');
     if (node.blocks && node.blocks.length > 0) {
         blocksSection.style.display = 'block';
         blocksList.innerHTML = node.blocks.map(id => '<span class="hover-dep-chip" data-id="' + id + '">' + id + '</span>').join('');
     } else { blocksSection.style.display = 'none'; }
 
     // Commits
-    const commitsSection = document.getElementById('hover-commits');
-    const commitsList = document.getElementById('hover-commits-list');
+    const commitsSection = document.getElementById(prefix + 'commits');
+    const commitsList = document.getElementById(prefix + 'commits-list');
     if (node.commits && node.commits.length > 0) {
         commitsSection.style.display = 'block';
         commitsList.innerHTML = node.commits.slice(0, 5).map(c => '<div class="hover-commit"><span class="hover-commit-sha">' + c.short_sha + '</span> <span class="hover-commit-msg">' + (c.message || '').split('\\n')[0].substring(0, 60) + '</span></div>').join('');
     } else { commitsSection.style.display = 'none'; }
 
     // Metrics
-    const metricsEl = document.getElementById('hover-metrics');
+    const metricsEl = document.getElementById(prefix + 'metrics');
     metricsEl.innerHTML = '';
     const addMetric = (label, value) => {
         metricsEl.innerHTML += '<div class="hover-meta-item"><span class="hover-meta-label">' + label + '</span><span class="hover-meta-value">' + value + '</span></div>';
@@ -979,11 +1246,11 @@ function showHoverPanel(node) {
     addMetric('Slack', fmt(node.slack, 1));
     addMetric('In-Degree', node.in_degree ?? '-');
     addMetric('Out-Degree', node.out_degree ?? '-');
+}
 
-    panel.classList.add('visible');
-
-    // Wire up dep chip clicks
-    panel.querySelectorAll('.hover-dep-chip').forEach(chip => {
+// Wire up dep chip clicks for a container
+function wireDepChips(container) {
+    container.querySelectorAll('.hover-dep-chip').forEach(chip => {
         chip.onclick = () => {
             const targetId = chip.dataset.id;
             const graphNodes = Graph.graphData().nodes;
@@ -997,11 +1264,65 @@ function showHoverPanel(node) {
     });
 }
 
-function hideHoverPanel() {
-    document.getElementById('hover-panel').classList.remove('visible');
+// Show full details panel (docked or floating based on mode)
+function showHoverPanel(node) {
+    if (panelMode === 'docked') {
+        // Update docked panel
+        populatePanelContent('docked-', node);
+        document.getElementById('docked-panel').classList.add('visible');
+        document.getElementById('docked-no-selection').style.display = 'none';
+        wireDepChips(document.getElementById('docked-panel'));
+    } else {
+        // Update floating panel
+        populatePanelContent('hover-', node);
+        document.getElementById('hover-panel').classList.add('visible');
+        wireDepChips(document.getElementById('hover-panel'));
+    }
 }
 
-document.getElementById('hover-close').onclick = hideHoverPanel;
+function hideHoverPanel() {
+    if (panelMode === 'docked') {
+        document.getElementById('docked-panel').classList.remove('visible');
+        document.getElementById('docked-no-selection').style.display = 'flex';
+    } else {
+        document.getElementById('hover-panel').classList.remove('visible');
+    }
+}
+
+// Toggle between docked and floating modes
+function togglePanelMode() {
+    const detachBtn = document.getElementById('btn-detach');
+    const sidebar = document.getElementById('detail-sidebar');
+
+    if (panelMode === 'docked') {
+        panelMode = 'floating';
+        sidebar.classList.add('collapsed');
+        detachBtn.innerHTML = '<span>⇲</span> Dock';
+        detachBtn.title = 'Dock panel to left side (D)';
+        // Show floating panel if we have a hovered node
+        if (hoveredNode) {
+            populatePanelContent('hover-', hoveredNode);
+            document.getElementById('hover-panel').classList.add('visible');
+            wireDepChips(document.getElementById('hover-panel'));
+        }
+    } else {
+        panelMode = 'docked';
+        sidebar.classList.remove('collapsed');
+        detachBtn.innerHTML = '<span>⇱</span> Detach';
+        detachBtn.title = 'Detach panel to float (D)';
+        document.getElementById('hover-panel').classList.remove('visible');
+        // Show docked panel if we have a hovered node
+        if (hoveredNode) {
+            populatePanelContent('docked-', hoveredNode);
+            document.getElementById('docked-panel').classList.add('visible');
+            document.getElementById('docked-no-selection').style.display = 'none';
+            wireDepChips(document.getElementById('docked-panel'));
+        }
+    }
+}
+
+document.getElementById('btn-detach').onclick = togglePanelMode;
+document.getElementById('hover-close').onclick = () => document.getElementById('hover-panel').classList.remove('visible');
 
 let selectedNode = null;
 function selectNode(node) {
@@ -1244,7 +1565,7 @@ document.getElementById('btn-reset').onclick = () => {
     Graph.nodeColor(n => STATUS_COLORS[n.status] || '#555577');
     Graph.linkColor(l => l.critical ? '#ec489980' : '#44475a40');
     clearSelection(); hideHoverPanel(); Graph.zoomToFit(400, 50); updateVisibleCount();
-    document.getElementById('heatmap-legend').classList.remove('visible');
+    document.getElementById('heatmap-legend').classList.remove('heatmap-active');
     document.getElementById('top-nodes-panel').classList.remove('visible');
     document.getElementById('triage-panel').style.display = 'none';
     document.getElementById('btn-heatmap').classList.remove('active');
@@ -1252,11 +1573,11 @@ document.getElementById('btn-reset').onclick = () => {
     document.getElementById('btn-top').classList.remove('active');
 };
 
-// Heatmap toggle
+// Heatmap toggle - legend always visible, toggle controls coloring mode
 document.getElementById('btn-heatmap').onclick = () => {
     heatmapMode = !heatmapMode;
     document.getElementById('btn-heatmap').classList.toggle('active', heatmapMode);
-    document.getElementById('heatmap-legend').classList.toggle('visible', heatmapMode);
+    document.getElementById('heatmap-legend').classList.toggle('heatmap-active', heatmapMode);
     Graph.nodeColor(n => heatmapMode ? getHeatmapColor(n) : STATUS_COLORS[n.status] || '#555577');
 };
 
@@ -1318,26 +1639,213 @@ function showToast(msg) {
     setTimeout(() => toast.classList.remove('visible'), 2500);
 }
 
+// Light/Dark mode toggle
+let isDarkMode = true;
+function toggleLightMode() {
+    isDarkMode = !isDarkMode;
+    document.body.classList.toggle('light-mode', !isDarkMode);
+    const btn = document.getElementById('btn-theme');
+    btn.textContent = isDarkMode ? '☀️' : '🌙';
+    btn.title = isDarkMode ? 'Switch to light mode (L)' : 'Switch to dark mode (L)';
+    localStorage.setItem('bv-graph-theme', isDarkMode ? 'dark' : 'light');
+}
+
+// Recently viewed nodes
+const recentlyViewed = [];
+const MAX_RECENT = 8;
+function addToRecent(node) {
+    const idx = recentlyViewed.findIndex(n => n.id === node.id);
+    if (idx > -1) recentlyViewed.splice(idx, 1);
+    recentlyViewed.unshift({ id: node.id, title: node.title });
+    if (recentlyViewed.length > MAX_RECENT) recentlyViewed.pop();
+    updateRecentPanel();
+}
+function updateRecentPanel() {
+    const list = document.getElementById('recent-list');
+    list.innerHTML = recentlyViewed.map(n =>
+        '<div class="recent-item" data-id="' + n.id + '"><span class="recent-id">' + n.id + '</span></div>'
+    ).join('');
+    list.querySelectorAll('.recent-item').forEach(el => {
+        el.onclick = () => {
+            const graphNodes = Graph.graphData().nodes;
+            const node = graphNodes.find(n => n.id === el.dataset.id);
+            if (node) { selectNode(node); Graph.centerAt(node.x, node.y, 500); Graph.zoom(2.5, 500); }
+        };
+    });
+}
+document.getElementById('btn-recent').onclick = () => {
+    const panel = document.getElementById('recent-panel');
+    const visible = panel.classList.toggle('visible');
+    document.getElementById('btn-recent').classList.toggle('active', visible);
+};
+
+// Path finder mode
+let pathFinderMode = false;
+let pathFinderStart = null;
+function togglePathFinder() {
+    pathFinderMode = !pathFinderMode;
+    document.getElementById('btn-path').classList.toggle('active', pathFinderMode);
+    document.getElementById('pathfinder-banner').classList.toggle('visible', pathFinderMode);
+    if (!pathFinderMode) { pathFinderStart = null; }
+    else if (selectedNode) { pathFinderStart = selectedNode; showToast('Now click destination node'); }
+}
+document.getElementById('btn-path').onclick = togglePathFinder;
+
+// BFS for shortest path
+function bfsPath(startId, endId) {
+    const links = DATA.links;
+    const adj = {};
+    links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        if (!adj[s]) adj[s] = [];
+        if (!adj[t]) adj[t] = [];
+        adj[s].push(t);
+        adj[t].push(s); // Undirected for path finding
+    });
+    const queue = [[startId]];
+    const visited = new Set([startId]);
+    while (queue.length > 0) {
+        const path = queue.shift();
+        const node = path[path.length - 1];
+        if (node === endId) return path;
+        for (const neighbor of (adj[node] || [])) {
+            if (!visited.has(neighbor)) {
+                visited.add(neighbor);
+                queue.push([...path, neighbor]);
+            }
+        }
+    }
+    return null;
+}
+
+// Help overlay
+function toggleHelp() {
+    document.getElementById('help-overlay').classList.toggle('visible');
+}
+document.getElementById('btn-help').onclick = toggleHelp;
+document.getElementById('help-close').onclick = toggleHelp;
+document.getElementById('help-overlay').onclick = e => { if (e.target.id === 'help-overlay') toggleHelp(); };
+
+// Priority filter
+let priorityFilter = '';
+document.getElementById('filter-priority').onchange = e => {
+    priorityFilter = e.target.value;
+    applyFilters();
+};
+
+// Label filter - populate from data
+const allLabels = new Set();
+DATA.nodes.forEach(n => (n.labels || []).forEach(l => allLabels.add(l)));
+const labelSelect = document.getElementById('filter-label');
+[...allLabels].sort().forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l; opt.textContent = l;
+    labelSelect.appendChild(opt);
+});
+let labelFilter = '';
+labelSelect.onchange = e => {
+    labelFilter = e.target.value;
+    applyFilters();
+};
+
+// Combined filter function
+function applyFilters() {
+    Graph.nodeVisibility(n => {
+        if (statusFilter && n.status !== statusFilter) return false;
+        if (typeFilter && n.type !== typeFilter) return false;
+        if (priorityFilter && n.priority !== parseInt(priorityFilter)) return false;
+        if (labelFilter && !(n.labels || []).includes(labelFilter)) return false;
+        return true;
+    });
+    updateVisibleCount();
+}
+
+// Override existing filter handlers to use combined function
+document.getElementById('filter-status').onchange = e => { statusFilter = e.target.value; applyFilters(); };
+document.getElementById('filter-type').onchange = e => { typeFilter = e.target.value; applyFilters(); };
+
+// Mini-map
+const minimapCanvas = document.getElementById('minimap-canvas');
+const minimapCtx = minimapCanvas.getContext('2d');
+function updateMinimap() {
+    const nodes = Graph.graphData().nodes;
+    if (nodes.length === 0) return;
+    const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    nodes.forEach(n => {
+        if (n.x != null && n.y != null) {
+            bounds.minX = Math.min(bounds.minX, n.x);
+            bounds.maxX = Math.max(bounds.maxX, n.x);
+            bounds.minY = Math.min(bounds.minY, n.y);
+            bounds.maxY = Math.max(bounds.maxY, n.y);
+        }
+    });
+    const padding = 20;
+    const w = minimapCanvas.width = 160;
+    const h = minimapCanvas.height = 120;
+    const scaleX = (w - padding * 2) / (bounds.maxX - bounds.minX || 1);
+    const scaleY = (h - padding * 2) / (bounds.maxY - bounds.minY || 1);
+    const scale = Math.min(scaleX, scaleY);
+    minimapCtx.fillStyle = isDarkMode ? '#1a1a2e' : '#f0f2f5';
+    minimapCtx.fillRect(0, 0, w, h);
+    nodes.forEach(n => {
+        if (n.x == null || n.y == null) return;
+        const x = padding + (n.x - bounds.minX) * scale;
+        const y = padding + (n.y - bounds.minY) * scale;
+        minimapCtx.fillStyle = STATUS_COLORS[n.status] || '#555577';
+        minimapCtx.beginPath();
+        minimapCtx.arc(x, y, 2, 0, Math.PI * 2);
+        minimapCtx.fill();
+    });
+}
+setInterval(updateMinimap, 2000);
+
+// LocalStorage preferences
+function loadPreferences() {
+    const theme = localStorage.getItem('bv-graph-theme');
+    if (theme === 'light') { isDarkMode = false; toggleLightMode(); toggleLightMode(); }
+    const layout = localStorage.getItem('bv-graph-layout');
+    if (layout) {
+        document.getElementById('view-mode').value = layout;
+        Graph.dagMode(layout === 'force' ? null : layout);
+    }
+}
+document.getElementById('view-mode').addEventListener('change', e => {
+    localStorage.setItem('bv-graph-layout', e.target.value);
+});
+
 // Keyboard shortcuts
 document.onkeydown = e => {
     if (e.target.tagName === 'INPUT') return;
+    if (e.key === '?') { toggleHelp(); return; }
     switch(e.key.toLowerCase()) {
         case 'f': Graph.zoomToFit(400, 50); break;
         case 'r': document.getElementById('btn-reset').click(); break;
-        case 'escape': clearSelection(); hideHoverPanel(); highlightedNodes = new Set(); Graph.nodeColor(Graph.nodeColor()); break;
+        case 'escape':
+            if (pathFinderMode) { pathFinderMode = false; pathFinderStart = null; document.getElementById('pathfinder-banner').classList.remove('visible'); document.getElementById('btn-path').classList.remove('active'); }
+            else { clearSelection(); hideHoverPanel(); highlightedNodes = new Set(); Graph.nodeColor(Graph.nodeColor()); }
+            break;
         case ' ': e.preventDefault(); document.getElementById('btn-fullscreen').click(); break;
         case 'h': document.getElementById('btn-heatmap').click(); break;
         case 't': document.getElementById('btn-top').click(); break;
         case 'g': document.getElementById('btn-triage').click(); break;
-        case '1': document.getElementById('view-mode').value = 'force'; Graph.dagMode(null); break;
-        case '2': document.getElementById('view-mode').value = 'td'; Graph.dagMode('td'); break;
-        case '3': document.getElementById('view-mode').value = 'lr'; Graph.dagMode('lr'); break;
-        case '4': document.getElementById('view-mode').value = 'radialout'; Graph.dagMode('radialout'); break;
+        case 'd': togglePanelMode(); break;
+        case 'l': toggleLightMode(); break;
+        case 'y': document.getElementById('btn-recent').click(); break;
+        case 'p': togglePathFinder(); break;
+        case '1': document.getElementById('view-mode').value = 'force'; Graph.dagMode(null); localStorage.setItem('bv-graph-layout', 'force'); break;
+        case '2': document.getElementById('view-mode').value = 'td'; Graph.dagMode('td'); localStorage.setItem('bv-graph-layout', 'td'); break;
+        case '3': document.getElementById('view-mode').value = 'lr'; Graph.dagMode('lr'); localStorage.setItem('bv-graph-layout', 'lr'); break;
+        case '4': document.getElementById('view-mode').value = 'radialout'; Graph.dagMode('radialout'); localStorage.setItem('bv-graph-layout', 'radialout'); break;
     }
 };
 
-// Initial fit
-setTimeout(() => { Graph.zoomToFit(400, 50); updateVisibleCount(); }, 800);
+// Wire up theme button
+document.getElementById('btn-theme').onclick = toggleLightMode;
+
+// Load preferences and initial fit
+loadPreferences();
+setTimeout(() => { Graph.zoomToFit(400, 50); updateVisibleCount(); updateMinimap(); }, 800);
     </script>
 </body>
 </html>`, title, title, nodeCount, edgeCount, nodeCount, nodeCount, edgeCount, timestamp, dataHash, projectName, forceGraphLib, markedLib, graphDataJSON)

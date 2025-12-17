@@ -110,7 +110,7 @@ func (s *ShortcutsSidebar) allSections() []shortcutSection {
 				{"i", "Insights panel"},
 				{"P", "Sprint dashboard"},
 				{"?", "Help overlay"},
-				{"F2", "Toggle sidebar"},
+				{";", "Toggle sidebar"},
 			},
 		},
 		{
@@ -277,7 +277,7 @@ func (s *ShortcutsSidebar) View() string {
 		}
 		footer = dimStyle.Render(fmt.Sprintf("j/k scroll %d%%", scrollPercent))
 	} else {
-		footer = dimStyle.Render("F2 hide")
+		footer = dimStyle.Render("; hide")
 	}
 
 	// Combine content and footer

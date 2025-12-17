@@ -180,8 +180,8 @@ func TestViewTogglesGraphBoardInsightsActionable(t *testing.T) {
 		t.Fatalf("priority hints should toggle on with 'p'")
 	}
 
-	// Recipe picker toggle (F5 key)
-	modelAny, _ = m.Update(tea.KeyMsg{Type: tea.KeyF5})
+	// Recipe picker toggle (' key, F5 also works)
+	modelAny, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'\''}})
 	m = modelAny.(Model)
 	if !m.showRecipePicker || m.focused != focusRecipePicker {
 		t.Fatalf("recipe picker not opened correctly")
