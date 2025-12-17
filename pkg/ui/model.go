@@ -2371,7 +2371,12 @@ func (m Model) handleHistoryKeys(msg tea.KeyMsg) Model {
 					m.statusMsg = fmt.Sprintf("❌ Could not open browser: %v", err)
 					m.statusIsError = true
 				} else {
-					m.statusMsg = fmt.Sprintf("🌐 Opened %s in browser", sha[:7])
+					// Safely truncate SHA for display (bv-xf4p fix)
+					shortSHA := sha
+					if len(sha) > 7 {
+						shortSHA = sha[:7]
+					}
+					m.statusMsg = fmt.Sprintf("🌐 Opened %s in browser", shortSHA)
 					m.statusIsError = false
 				}
 			} else {

@@ -1994,6 +1994,7 @@ func eventTypeLabel(et correlation.EventType) string {
 }
 
 // renderEventsSection renders a compact timeline of lifecycle events (bv-7k8p)
+// Returns at most maxLines lines total (header + events + optional "more" line)
 func (h *HistoryModel) renderEventsSection(events []correlation.BeadEvent, width int, maxLines int) []string {
 	if len(events) == 0 {
 		return nil
@@ -2002,7 +2003,7 @@ func (h *HistoryModel) renderEventsSection(events []correlation.BeadEvent, width
 	t := h.theme
 	var lines []string
 
-	// Section header
+	// Section header (takes 1 line)
 	headerStyle := t.Renderer.NewStyle().
 		Foreground(t.Secondary).
 		Bold(true)
@@ -2012,9 +2013,19 @@ func (h *HistoryModel) renderEventsSection(events []correlation.BeadEvent, width
 	timeStyle := t.Renderer.NewStyle().Foreground(t.Muted).Width(8)
 	authorStyle := t.Renderer.NewStyle().Foreground(t.Secondary)
 
+	// Calculate how many events we can show:
+	// - 1 line for header
+	// - If more events exist than we can show, reserve 1 line for "+N more"
+	// - Remaining lines are for events
+	availableForEvents := maxLines - 1 // subtract header
+	needsMoreLine := len(events) > availableForEvents
+	if needsMoreLine {
+		availableForEvents-- // reserve line for "+N more"
+	}
+
 	// Show most recent events first (reverse chronological for timeline)
 	displayed := 0
-	for i := len(events) - 1; i >= 0 && displayed < maxLines-1; i-- {
+	for i := len(events) - 1; i >= 0 && displayed < availableForEvents; i-- {
 		event := events[i]
 
 		// Event icon with color
@@ -2060,9 +2071,9 @@ func (h *HistoryModel) renderEventsSection(events []correlation.BeadEvent, width
 		displayed++
 	}
 
-	// If more events exist than displayed, show count
-	if len(events) > maxLines-1 {
-		remaining := len(events) - (maxLines - 1)
+	// Show "+N more" if we couldn't display all events
+	if needsMoreLine {
+		remaining := len(events) - displayed
 		moreStyle := t.Renderer.NewStyle().Foreground(t.Muted).Italic(true)
 		lines = append(lines, moreStyle.Render(fmt.Sprintf("  +%d more", remaining)))
 	}
@@ -2300,6 +2311,9 @@ func (h *HistoryModel) renderGitDetailPanel(width, height int) string {
 	// Reserve space for footer hint (bv-xf4p)
 	footerHeight := 2
 	contentHeight := height - 2 - footerHeight
+	if contentHeight < 1 {
+		contentHeight = 1 // Minimum content height to avoid negative slicing
+	}
 
 	// Pad with empty lines
 	for len(lines) < contentHeight {
