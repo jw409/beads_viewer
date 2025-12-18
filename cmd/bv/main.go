@@ -114,6 +114,9 @@ func main() {
 	correlationFeedbackBy := flag.String("correlation-by", "", "Agent/user identifier for correlation feedback")
 	correlationFeedbackReason := flag.String("correlation-reason", "", "Reason for correlation feedback")
 	robotCorrelationStats := flag.Bool("robot-correlation-stats", false, "Output correlation feedback statistics as JSON")
+	// Orphan commit detection flags (bv-jdop)
+	robotOrphans := flag.Bool("robot-orphans", false, "Output orphan commit candidates (commits that should be linked but aren't) as JSON")
+	orphansMinScore := flag.Int("orphans-min-score", 30, "Minimum suspicion score for orphan candidates (0-100)")
 	// File-bead index flags (bv-hmib)
 	robotFileBeads := flag.String("robot-file-beads", "", "Output beads that touched a file path as JSON")
 	fileBeadsLimit := flag.Int("file-beads-limit", 20, "Max closed beads to show (use with --robot-file-beads)")
@@ -2899,6 +2902,93 @@ func main() {
 			}
 			os.Exit(0)
 		}
+	}
+
+	// Handle --robot-orphans flag (bv-jdop)
+	if *robotOrphans {
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Validate repository
+		if err := correlation.ValidateRepository(cwd); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Get beads path
+		beadsDir, err := loader.GetBeadsDir("")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting beads directory: %v\n", err)
+			os.Exit(1)
+		}
+		beadsPath, err := loader.FindJSONLPath(beadsDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error finding beads file: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Convert issues to BeadInfo
+		beadInfos := make([]correlation.BeadInfo, len(issues))
+		for i, issue := range issues {
+			beadInfos[i] = correlation.BeadInfo{
+				ID:     issue.ID,
+				Title:  issue.Title,
+				Status: string(issue.Status),
+			}
+		}
+
+		// Generate history report first (to get existing correlations)
+		correlator := correlation.NewCorrelator(cwd, beadsPath)
+		correlatorOpts := correlation.CorrelatorOptions{
+			Limit: *historyLimit,
+		}
+
+		report, err := correlator.GenerateReport(beadInfos, correlatorOpts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating history report: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Detect orphans using OrphanDetector
+		detector := correlation.NewOrphanDetector(report, cwd)
+		extractOpts := correlation.ExtractOptions{
+			Limit: *historyLimit,
+		}
+		orphanReport, err := detector.DetectOrphans(extractOpts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error detecting orphans: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Filter by minimum score
+		var filteredCandidates []correlation.OrphanCandidate
+		for _, candidate := range orphanReport.Candidates {
+			if candidate.SuspicionScore >= *orphansMinScore {
+				filteredCandidates = append(filteredCandidates, candidate)
+			}
+		}
+		orphanReport.Candidates = filteredCandidates
+
+		// Update stats for filtered results
+		orphanReport.Stats.CandidateCount = len(filteredCandidates)
+		if len(filteredCandidates) > 0 {
+			totalSuspicion := 0
+			for _, c := range filteredCandidates {
+				totalSuspicion += c.SuspicionScore
+			}
+			orphanReport.Stats.AvgSuspicion = float64(totalSuspicion) / float64(len(filteredCandidates))
+		}
+
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(orphanReport); err != nil {
+			fmt.Fprintf(os.Stderr, "Error encoding orphan report: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 
 	// Handle --robot-file-beads and --robot-file-hotspots flags (bv-hmib)
