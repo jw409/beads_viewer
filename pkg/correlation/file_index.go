@@ -635,7 +635,7 @@ func (fl *FileLookup) ImpactAnalysis(files []string) *ImpactResult {
 		if recencyScore < 0 {
 			recencyScore = 0
 		}
-		overlapScore := float64(ab.OverlapCount) / float64(len(files))
+		overlapScore := float64(ab.OverlapCount) / float64(len(normalizedFiles))
 		statusMultiplier := 0.5
 		if ab.Status == "in_progress" {
 			statusMultiplier = 1.0
@@ -660,7 +660,7 @@ func (fl *FileLookup) ImpactAnalysis(files []string) *ImpactResult {
 	})
 
 	result.RiskScore = float64(inProgressCount)*0.4 + float64(openCount)*0.2 + float64(recentClosedCount)*0.05
-	if len(files) > 3 {
+	if len(normalizedFiles) > 3 {
 		result.RiskScore += 0.1
 	}
 	if result.RiskScore > 1.0 {
