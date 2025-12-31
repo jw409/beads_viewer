@@ -139,7 +139,7 @@ var RepoColors = []lipgloss.Color{
 }
 
 // GetRepoColor returns a consistent color for a repo prefix based on hash
-func GetRepoColor(prefix string) lipgloss.Color {
+func GetRepoColor(prefix string) lipgloss.TerminalColor {
 	if prefix == "" {
 		return ColorMuted
 	}
