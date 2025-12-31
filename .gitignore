@@ -28,3 +28,4 @@ pkg/export/wasm_scorer/pkg/
 node_modules/
 beads_viewer_graph*.html
 test-results/
+bv-test

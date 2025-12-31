@@ -23,6 +23,7 @@ type Issue struct {
 	UpdatedAt          time.Time     `json:"updated_at"`
 	DueDate            *time.Time    `json:"due_date,omitempty"`
 	ClosedAt           *time.Time    `json:"closed_at,omitempty"`
+	CloseReason        string        `json:"close_reason,omitempty"`
 	ExternalRef        *string       `json:"external_ref,omitempty"`
 	CompactionLevel    int           `json:"compaction_level,omitempty"`
 	CompactedAt        *time.Time    `json:"compacted_at,omitempty"`

@@ -5341,6 +5341,12 @@ func (m *Model) updateViewportContent() {
 		sb.WriteString(item.Notes + "\n\n")
 	}
 
+	// Close Reason (shown only for closed issues)
+	if item.Status == model.StatusClosed && item.CloseReason != "" {
+		sb.WriteString("### Close Reason\n")
+		sb.WriteString(item.CloseReason + "\n\n")
+	}
+
 	// Dependency Graph (Tree)
 	if len(item.Dependencies) > 0 {
 		rootNode := BuildDependencyTree(item.ID, m.issueMap, 3) // Max depth 3
@@ -5797,6 +5803,11 @@ func (m *Model) copyIssueToClipboard() {
 
 	if issue.AcceptanceCriteria != "" {
 		sb.WriteString(fmt.Sprintf("\n## Acceptance Criteria\n\n%s\n", issue.AcceptanceCriteria))
+	}
+
+	// Close reason for closed issues
+	if issue.Status == model.StatusClosed && issue.CloseReason != "" {
+		sb.WriteString(fmt.Sprintf("\n## Close Reason\n\n%s\n", issue.CloseReason))
 	}
 
 	// Dependencies
