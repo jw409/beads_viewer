@@ -1,10 +1,21 @@
-# Beads Viewer (bv)
+# Beads Viewer (bv) - jw409 Fork
 
-![Release](https://img.shields.io/github/v/release/Dicklesworthstone/beads_viewer?style=for-the-badge&color=bd93f9)
-![Go Version](https://img.shields.io/github/go-mod/go-version/Dicklesworthstone/beads_viewer?style=for-the-badge&color=6272a4)
+> **Fork of [Dicklesworthstone/beads_viewer](https://github.com/Dicklesworthstone/beads_viewer)** with TalentOS/ZMCPTools integration.
+
+## Why This Fork
+
+| Enhancement | What's Different |
+|-------------|------------------|
+| **High-contrast theme** | Readable on light terminals (the original Dracula palette fails WCAG) |
+| **`close_reason` field** | Track *why* beads close, not just *that* they closed |
+| **Agent-native CLI** | Auto-detect TTY vs pipe context. No `--robot*` ceremony. |
+| **ZMCPTools search backend** | Replaces FTS5 with hybrid search: tree-sitter AST parsing, Qwen3 embeddings, neural reranker, local GPU acceleration. [See ZMCPTools →](https://github.com/jw409/ZMCPTools) |
+| **:8888 dashboard integration** | Beads kanban + OTEL session observability + learning pipeline in one view |
+
+---
+
+![Go Version](https://img.shields.io/github/go-mod/go-version/jw409/beads_viewer?style=for-the-badge&color=6272a4)
 ![License](https://img.shields.io/badge/License-MIT-50fa7b?style=for-the-badge)
-![Build Status](https://img.shields.io/github/actions/workflow/status/Dicklesworthstone/beads_viewer/ci.yml?style=for-the-badge&logo=github)
-[![Coverage](https://codecov.io/gh/Dicklesworthstone/beads_viewer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dicklesworthstone/beads_viewer)
 
 > **The elegant, keyboard-driven terminal interface for the [Beads](https://github.com/steveyegge/beads) issue tracker.**
 
