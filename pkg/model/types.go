@@ -33,6 +33,13 @@ type Issue struct {
 	Dependencies       []*Dependency `json:"dependencies,omitempty"`
 	Comments           []*Comment    `json:"comments,omitempty"`
 	SourceRepo         string        `json:"source_repo,omitempty"`
+
+	// Task accountability fields
+	AckStatus    AckStatus  `json:"ack_status,omitempty"`
+	BounceCount  int        `json:"bounce_count,omitempty"`
+	Deadline     *time.Time `json:"deadline,omitempty"`
+	DeferredFrom string     `json:"deferred_from,omitempty"`
+	Escalated    bool       `json:"escalated,omitempty"`
 }
 
 // Clone creates a deep copy of the issue
@@ -62,6 +69,10 @@ func (i Issue) Clone() Issue {
 	if i.CompactedAtCommit != nil {
 		v := *i.CompactedAtCommit
 		clone.CompactedAtCommit = &v
+	}
+	if i.Deadline != nil {
+		v := *i.Deadline
+		clone.Deadline = &v
 	}
 
 	if i.Labels != nil {
@@ -145,6 +156,41 @@ func (s Status) IsOpen() bool {
 // IsTombstone returns true if the status represents a permanently deleted/archived state
 func (s Status) IsTombstone() bool {
 	return s == StatusTombstone
+}
+
+// AckStatus represents the acknowledgment state of a task assignment
+type AckStatus string
+
+const (
+	AckStatusPending    AckStatus = "pending"
+	AckStatusAccepted   AckStatus = "accepted"
+	AckStatusDeclined   AckStatus = "declined"
+	AckStatusDeferred   AckStatus = "deferred"
+	AckStatusImpossible AckStatus = "impossible"
+)
+
+// IsValid returns true if the ack status is a recognized value
+func (a AckStatus) IsValid() bool {
+	switch a {
+	case "", AckStatusPending, AckStatusAccepted, AckStatusDeclined, AckStatusDeferred, AckStatusImpossible:
+		return true
+	}
+	return false
+}
+
+// IsPending returns true if the task is awaiting acknowledgment
+func (a AckStatus) IsPending() bool {
+	return a == "" || a == AckStatusPending
+}
+
+// IsAccepted returns true if the task has been accepted
+func (a AckStatus) IsAccepted() bool {
+	return a == AckStatusAccepted
+}
+
+// NeedsEscalation returns true if the task should be escalated (impossible or bounced too many times)
+func (a AckStatus) NeedsEscalation() bool {
+	return a == AckStatusImpossible
 }
 
 // IssueType categorizes the kind of work
