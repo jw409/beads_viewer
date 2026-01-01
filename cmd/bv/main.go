@@ -4231,7 +4231,7 @@ func main() {
 
 		// Launch TUI with historical issues (already loaded, no live reload)
 		m := ui.NewModel(issues, activeRecipe, "")
-		p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+		p := tea.NewProgram(m, tea.WithAltScreen()) // No mouse capture - enables native text selection
 
 		// Optional auto-quit for automated tests: set BV_TUI_AUTOCLOSE_MS
 		if v := os.Getenv("BV_TUI_AUTOCLOSE_MS"); v != "" {
@@ -4337,7 +4337,7 @@ func main() {
 	}
 
 	// Run Program
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(m, tea.WithAltScreen()) // No mouse capture - enables native text selection
 
 	// Optional auto-quit for automated tests: set BV_TUI_AUTOCLOSE_MS
 	if v := os.Getenv("BV_TUI_AUTOCLOSE_MS"); v != "" {

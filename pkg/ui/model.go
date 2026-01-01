@@ -4754,7 +4754,7 @@ func (m *Model) renderFooter() string {
 		} else if m.showDetails {
 			keyHints = append(keyHints, keyStyle.Render("esc")+" back", keyStyle.Render("C")+" copy", keyStyle.Render("O")+" edit", keyStyle.Render("?")+" help")
 		} else {
-			keyHints = append(keyHints, keyStyle.Render("⏎")+" details", keyStyle.Render("t")+" diff", keyStyle.Render("S")+" triage", keyStyle.Render("l")+" labels", keyStyle.Render("?")+" help")
+			keyHints = append(keyHints, keyStyle.Render("⏎")+" details", keyStyle.Render("g")+" graph", keyStyle.Render("i")+" insights", keyStyle.Render("S")+" triage", keyStyle.Render("?")+" help")
 			if m.workspaceMode {
 				keyHints = append(keyHints, keyStyle.Render("w")+" repos")
 			}
