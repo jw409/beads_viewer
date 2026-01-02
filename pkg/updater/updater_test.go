@@ -219,6 +219,9 @@ func TestCompareVersions_DevBuilds(t *testing.T) {
 		{"dev is newer than release", "v1.0.0", "dev", -1},
 		{"nightly is newer than release", "v1.0.0", "nightly", -1},
 		{"dirty string is newer than release", "v1.0.0", "dirty", -1},
+		{"local is newer than release", "v1.0.0", "local", -1},
+		{"snapshot is newer than release", "v1.0.0", "snapshot", -1},
+		{"git-abc123 is newer than release", "v1.0.0", "git-abc123", -1},
 
 		// Parseable dev builds with suffixes - THE BUG FIX CASES
 		// These should NOT trigger update prompts when local is a dev build of the same version
@@ -260,7 +263,7 @@ func TestRelease_Fields(t *testing.T) {
 	// Test that Release struct can be properly instantiated
 	rel := Release{
 		TagName: "v0.9.0",
-		HTMLURL: "https://github.com/Dicklesworthstone/github.com/Dicklesworthstone/beads_viewer/releases/tag/v0.9.0",
+		HTMLURL: "https://github.com/Dicklesworthstone/beads_viewer/releases/tag/v0.9.0",
 	}
 
 	if rel.TagName != "v0.9.0" {
@@ -276,8 +279,8 @@ func TestRelease_Fields(t *testing.T) {
 // ============================================================================
 
 func TestCompareVersions_AgainstCurrentVersion(t *testing.T) {
-	// These tests ensure that the current app version is properly comparable
-	// Current version is v0.10.2 (from version.go)
+	// These tests ensure version comparison works correctly with a sample version
+	// Note: uses a fixed test version, not the actual app version from version.go
 	currentVersion := "v0.10.2"
 
 	tests := []struct {

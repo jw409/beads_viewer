@@ -166,7 +166,12 @@ func compareVersions(v1, v2 string) int {
 	// than any release to prevent downgrade prompts.
 	isDev := func(v string) bool {
 		v = strings.ToLower(v)
-		return strings.Contains(v, "dev") || strings.Contains(v, "nightly") || strings.Contains(v, "dirty")
+		return strings.Contains(v, "dev") ||
+			strings.Contains(v, "dirty") ||
+			strings.Contains(v, "nightly") ||
+			strings.Contains(v, "local") ||
+			strings.Contains(v, "snapshot") ||
+			strings.Contains(v, "git")
 	}
 
 	if p2 == nil && isDev(v2) {
@@ -622,8 +627,10 @@ func PerformUpdate(release *Release, skipConfirm bool) (*UpdateResult, error) {
 		// On some systems, rename across filesystems doesn't work
 		if err := copyFile(newBinaryPath, binaryPath); err != nil {
 			// Restore from backup
-			copyFile(backupPath, binaryPath)
-			return nil, fmt.Errorf("installation failed: %w", err)
+			if restoreErr := copyFile(backupPath, binaryPath); restoreErr != nil {
+				return nil, fmt.Errorf("installation failed: %w (restore also failed: %v; manual recovery: cp %s %s)", err, restoreErr, backupPath, binaryPath)
+			}
+			return nil, fmt.Errorf("installation failed (restored from backup): %w", err)
 		}
 	}
 
